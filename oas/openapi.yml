@@ -1,0 +1,192 @@
+# TODO: Planetizerから取ってきた。書き換える
+openapi: 3.0.3
+info:
+  title: Senrigan API
+  version: 1.0.0
+  description: Senrigan API!
+
+paths:
+  # フロントのコード生成時に未使用エラーになるので必要...
+  /dummy:
+    get:
+      summary: dummy
+      description: dummy
+      operationId: dummy
+      parameters: []
+      responses: {}
+
+components:
+  schemas:
+    # 構造体 ================
+    Config:
+      type: object
+      properties:
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConfigSource"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConfigTag"
+      required:
+        - sources
+        - tags
+
+    ConfigSource:
+      type: object
+      properties:
+        rss_url:
+          $ref: "#/components/schemas/SourceRssUrl"
+        name:
+          $ref: "#/components/schemas/SourceName"
+        desc:
+          $ref: "#/components/schemas/SourceDesc"
+        tags:
+          $ref: "#/components/schemas/SourceTagList"
+        initial_visible:
+          $ref: "#/components/schemas/SourceInitialVisible"
+      required:
+        - rss_url
+        - name
+        - desc
+        - tags
+        - initial_visible
+
+    ConfigTag:
+      type: object
+      properties:
+        name:
+          $ref: "#/components/schemas/SourceTagName"
+        desc:
+          $ref: "#/components/schemas/SourceTagDesc"
+      required:
+        - name
+        - desc
+
+    FeedResult:
+      type: object
+      properties:
+        config:
+          $ref: "#/components/schemas/Config"
+        generated_at:
+          $ref: "#/components/schemas/FeedGeneratedAt"
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedEntry"
+        source_map:
+            $ref: "#/components/schemas/SourceMap"
+      required:
+        - config
+        - generated_at
+        - entries
+        - source_map
+
+    SourceMap:
+       type: object
+       additionalProperties:
+         type: object
+         properties:
+           entry_count:
+             type: integer
+           config_source:
+             $ref: "#/components/schemas/ConfigSource"
+         required:
+           - entry_count
+           - config_source
+
+    FeedEntry:
+      type: object
+      properties:
+        title:
+          $ref: "#/components/schemas/FeedTitle"
+        link:
+          $ref: "#/components/schemas/FeedLink"
+        published:
+          $ref: "#/components/schemas/FeedPublished"
+        summary:
+          $ref: "#/components/schemas/FeedSummary"
+        # サイトから取得した名前
+        feed_source:
+          $ref: "#/components/schemas/FeedSource"
+        # 設定ファイルから取得した名前
+        config_source:
+          $ref: "#/components/schemas/SourceName"
+      required:
+        - title
+        - link
+        - published
+        - summary
+        - feed_source
+        - config_source
+
+    # フィールド ================
+    SourceRssUrl:
+      type: string
+      format: uri
+      example: "https://example.com/feed.atom"
+      description: 設定ファイルでのRSSのURL
+
+    SourceName:
+      type: string
+      example: "example"
+      description: 設定ファイルでのRSS配信元の名前
+
+    SourceDesc:
+      type: string
+      example: "Goチームによる公式ブログ"
+      description: 設定ファイルでのRSS配信元の説明
+
+    SourceInitialVisible:
+      type: boolean
+      description: 設定ファイルでの読み込んだ直後の可視状態
+
+    SourceTagName:
+      type: string
+      example: "go"
+      description: RSS配信元についたタグ
+
+    SourceTagList:
+      type: array
+      items:
+        $ref: "#/components/schemas/SourceTagName"
+      description: RSS配信元についたタグ一覧
+
+    SourceTagDesc:
+      type: string
+      example: "Goに関する内容のタグ"
+      description: RSS配信元についたタグの概要
+
+    FeedGeneratedAt:
+      type: string
+      format: date-time
+      example: "2025-06-13T09:31:07Z"
+      description: フィードキュレーションを実行した日時
+
+    FeedTitle:
+      type: string
+      example: "記事のタイトル"
+      description: フィードエントリのタイトル
+
+    FeedLink:
+      type: string
+      format: uri
+      example: "https://example.com/article/1"
+      description: フィードエントリのURL
+
+    FeedPublished:
+      type: string
+      format: date-time
+      example: "2025-06-13T09:31:07Z"
+      description: フィードエントリの公開日時
+
+    FeedSummary:
+      type: string
+      example: "記事の概要"
+      description: フィードエントリの概要
+
+    FeedSource:
+      type: string
+      example: "example site"
+      description: フィードエントリの配信サイトの名前

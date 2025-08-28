@@ -1,0 +1,6 @@
+package: generated
+generate:
+  embedded-spec: true
+output: ./lib/generated/spec.gen.go
+output-options:
+  skip-prune: true
