@@ -24,7 +24,7 @@ func main() {
 
 	// ヘルプ表示
 	if *help {
-		fmt.Println("Senrigan - 監視カメラシステム")
+		fmt.Println("Senrigan")
 		fmt.Println()
 		fmt.Println("使用方法:")
 		fmt.Println("  server [オプション]")

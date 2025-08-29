@@ -27,14 +27,14 @@ export function MainPage() {
     const fetchData = async () => {
       try {
         // システム状態を取得
-        const statusResponse = await fetch("/api/status");
+        const statusResponse = await fetch("http://localhost:8080/api/status");
         if (statusResponse.ok) {
           const statusData = await statusResponse.json();
           setStatus(statusData);
         }
 
         // カメラ一覧を取得
-        const camerasResponse = await fetch("/api/cameras");
+        const camerasResponse = await fetch("http://localhost:8080/api/cameras");
         if (camerasResponse.ok) {
           const camerasData = await camerasResponse.json();
           setCameras(camerasData.cameras || []);
@@ -53,7 +53,7 @@ export function MainPage() {
   if (loading) {
     return (
       <div style={{ padding: "20px", textAlign: "center" }}>
-        <h1>Senrigan - 監視カメラシステム</h1>
+        <h1>Senrigan</h1>
         <p>読み込み中...</p>
       </div>
     );
@@ -62,7 +62,7 @@ export function MainPage() {
   if (error) {
     return (
       <div style={{ padding: "20px", textAlign: "center" }}>
-        <h1>Senrigan - 監視カメラシステム</h1>
+        <h1>Senrigan</h1>
         <p style={{ color: "red" }}>エラー: {error}</p>
       </div>
     );
@@ -71,8 +71,7 @@ export function MainPage() {
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
       <header style={{ marginBottom: "30px" }}>
-        <h1>Senrigan - 監視カメラシステム</h1>
-        <p>リアルタイム監視カメラストリーミングシステム</p>
+        <h1>Senrigan</h1>
       </header>
 
       {status && (
