@@ -1,0 +1,61 @@
+name: Check
+
+on:
+  push:
+
+jobs:
+  backend:
+    name: backend check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+
+      - name: build
+        run: "go build ."
+
+  front:
+    name: front check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: install
+        run: "npm install"
+
+      - name: build
+        run: "npm run build"
+
+      - name: test
+        run: "npm run test"
+
+      - name: lint
+        run: "npm run lint"
+
+  schema:
+    name: schema check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: generate api
+        run: ./oas/scripts/generate-api.sh
+
+      - name: generate frontend
+        run: ./oas/scripts/generate-frontend.sh
+
+      - name: diff
+        run: |
+          # 差分が出たら失敗させる
+          test -z "$(git status -s)"
