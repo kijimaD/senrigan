@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 	"time"
-	
+
 	"senrigan/internal/config"
 )
 
@@ -36,26 +36,26 @@ func TestGinServerStartAndShutdown(t *testing.T) {
 			DefaultHeight: 720,
 		},
 	}
-	
+
 	// Ginサーバーを作成
 	srv := NewGin(cfg)
-	
+
 	// テスト用のコンテキスト（タイムアウト付き）
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	// サーバーを別ゴルーチンで起動
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- srv.Start(ctx)
 	}()
-	
+
 	// サーバーが起動するまで少し待つ
 	time.Sleep(100 * time.Millisecond)
-	
+
 	// コンテキストをキャンセルしてサーバーを停止
 	cancel()
-	
+
 	// エラーチャンネルから結果を受信
 	select {
 	case err := <-errCh:
@@ -70,7 +70,7 @@ func TestGinServerStartAndShutdown(t *testing.T) {
 // TestGinServerEndpoints はGinサーバーのエンドポイントをテストする
 func TestGinServerEndpoints(t *testing.T) {
 	// この関数はparallelを使わない（ポート競合回避のため）
-	
+
 	// テスト用の設定（利用可能なポートを使用）
 	cfg := &config.Config{
 		Server: config.ServerConfig{
@@ -92,24 +92,24 @@ func TestGinServerEndpoints(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Ginサーバーを作成
 	srv := NewGin(cfg)
-	
+
 	// テスト用のコンテキスト
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	
+
 	// サーバーを別ゴルーチンで起動
 	go func() {
 		_ = srv.Start(ctx)
 	}()
-	
+
 	// サーバーが起動するまで待つ
 	time.Sleep(500 * time.Millisecond)
-	
+
 	baseURL := fmt.Sprintf("http://%s", cfg.ServerAddress())
-	
+
 	// テストケース
 	testCases := []struct {
 		name           string
@@ -122,7 +122,7 @@ func TestGinServerEndpoints(t *testing.T) {
 		{"カメラ一覧エンドポイント", "/api/cameras", http.StatusOK},
 		{"存在しないカメラストリーム", "/api/cameras/nonexistent/stream", http.StatusNotFound},
 	}
-	
+
 	// 各エンドポイントをテスト
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -134,9 +134,9 @@ func TestGinServerEndpoints(t *testing.T) {
 			defer func() {
 				_ = resp.Body.Close()
 			}()
-			
+
 			if resp.StatusCode != tc.expectedStatus {
-				t.Errorf("予期しないステータスコード: got %d, want %d", 
+				t.Errorf("予期しないステータスコード: got %d, want %d",
 					resp.StatusCode, tc.expectedStatus)
 			}
 		})

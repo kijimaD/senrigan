@@ -25,7 +25,7 @@ type GinServer struct {
 
 // NewGin は新しいGinServerインスタンスを作成する
 func NewGin(cfg *config.Config) *GinServer {
-	// 本番環境ではrelease modeに設定
+	// 開発モードで動作
 	gin.SetMode(gin.DebugMode)
 
 	router := gin.New()
@@ -33,6 +33,20 @@ func NewGin(cfg *config.Config) *GinServer {
 	// デフォルトミドルウェア
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
+
+	// CORS設定（フロントエンド開発サーバーからのアクセスを許可）
+	router.Use(func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "http://localhost:3000")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	})
 
 	return &GinServer{
 		config: cfg,
@@ -103,13 +117,10 @@ func (s *GinServer) setupRoutes() {
 		config: s.config,
 	}
 
-	// 生成されたルートを登録
+	// 生成されたルートを登録（OpenAPI仕様に基づく）
 	generated.RegisterHandlers(s.router, handler)
 
-	// 静的ファイル配信（将来的に追加予定）
-	// s.router.Static("/static", "./front")
-
-	// ルートパス（HTMLページ）
+	// 開発環境用の簡易ルートページ
 	s.router.GET("/", s.handleRoot)
 }
 

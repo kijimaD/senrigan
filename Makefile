@@ -29,6 +29,31 @@ tools-install: ## 開発ツールをインストールする
 .PHONY: check
 check: test build fmt lint ## 一気にチェックする
 
+# 開発環境
+.PHONY: frontend-install
+frontend-install: ## フロントエンドの依存関係をインストール
+	cd frontend && npm install
+
+.PHONY: frontend-dev
+frontend-dev: ## フロントエンド開発サーバを起動（ポート3000）
+	cd frontend && npm run dev
+
+.PHONY: backend-dev
+backend-dev: ## バックエンド開発サーバを起動（ポート8080）
+	go run .
+
+.PHONY: dev
+dev: ## 開発環境の使い方を表示
+	@echo "開発環境を起動するには、2つのターミナルで以下を実行してください："
+	@echo ""
+	@echo "ターミナル1（バックエンド）:"
+	@echo "  make backend-dev"
+	@echo ""
+	@echo "ターミナル2（フロントエンド）:"
+	@echo "  make frontend-dev"
+	@echo ""
+	@echo "アクセス: http://localhost:3000"
+
 # ================
 
 .PHONY: help
