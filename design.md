@@ -40,28 +40,28 @@
 ```
 senrigan/
 ├── cmd/
-│   └── server/
-│       └── main.go          # エントリーポイント
+│   └── server.go
 ├── internal/
 │   ├── camera/              # カメラ制御・キャプチャ
-│   │   ├── doc.go          
+│   │   ├── doc.go
 │   │   ├── manager.go      # 複数カメラの管理
 │   │   ├── capture.go      # カメラからの画像取得
 │   │   └── stream.go       # ストリーム生成
 │   ├── server/              # HTTPサーバー
-│   │   ├── doc.go          
+│   │   ├── doc.go
 │   │   ├── server.go       # HTTPサーバー本体
 │   │   ├── websocket.go    # WebSocketハンドラ
 │   │   └── static.go       # 静的ファイル配信
 │   └── config/              # 設定管理
-│       ├── doc.go          
+│       ├── doc.go
 │       └── config.go       # 設定構造体
-├── web/                     # フロントエンド
+├── front/                     # フロントエンド
 │   ├── index.html          # メインページ
 │   ├── style.css           # スタイル
 │   └── app.js              # WebSocket接続・表示制御
 ├── go.mod
 ├── go.sum
+├── main.go
 ├── Makefile
 ├── README.md
 └── config.yaml              # 設定ファイル

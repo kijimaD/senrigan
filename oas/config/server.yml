@@ -1,6 +1,6 @@
 package: generated
 generate:
   gin-server: true
-output: ./lib/generated/server.gen.go
+output: ./internal/generated/server.gen.go
 output-options:
   skip-prune: true
