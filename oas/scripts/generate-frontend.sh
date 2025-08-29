@@ -18,4 +18,4 @@ docker run --rm \
          -o oas/output/ts-axios
 
 mkdir -p frontend/generated
-mv oas/output/ts-axios/*.ts frontend/generated/
+mv oas/output/ts-axios/*.ts frontend/src/generated/
