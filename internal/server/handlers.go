@@ -76,11 +76,11 @@ func (h *SenriganHandler) GetCameras(c *gin.Context) {
 
 // GetCameraStream はカメラストリーム接続エンドポイントの実装
 // 現在はWebSocket機能未実装のため、404を返す
-func (h *SenriganHandler) GetCameraStream(c *gin.Context, cameraId string) {
+func (h *SenriganHandler) GetCameraStream(c *gin.Context, cameraID string) {
 	// カメラIDの存在確認
 	found := false
 	for _, device := range h.config.Camera.Devices {
-		if device.ID == cameraId {
+		if device.ID == cameraID {
 			found = true
 			break
 		}

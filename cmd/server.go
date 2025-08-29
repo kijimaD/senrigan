@@ -1,3 +1,4 @@
+// Package main はSenriganサーバーコマンドの実装です
 package main
 
 import (
@@ -57,6 +58,5 @@ func main() {
 	log.Printf("Senrigan サーバーを起動します: %s", cfg.ServerAddress())
 	if err := srv.Start(ctx); err != nil {
 		log.Fatalf("サーバーの起動に失敗しました: %v", err)
-		os.Exit(1)
 	}
 }

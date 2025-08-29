@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"testing"
 	"time"
-
+	
 	"senrigan/internal/config"
 )
 
-// TestServerStartAndShutdown はサーバーの起動とシャットダウンをテストする
-func TestServerStartAndShutdown(t *testing.T) {
+// TestGinServerStartAndShutdown はGinサーバーの起動とシャットダウンをテストする
+func TestGinServerStartAndShutdown(t *testing.T) {
 	// テスト用の設定を作成
 	cfg := &config.Config{
 		Server: config.ServerConfig{
@@ -36,26 +36,26 @@ func TestServerStartAndShutdown(t *testing.T) {
 			DefaultHeight: 720,
 		},
 	}
-
-	// サーバーを作成
-	srv := New(cfg)
-
+	
+	// Ginサーバーを作成
+	srv := NewGin(cfg)
+	
 	// テスト用のコンテキスト（タイムアウト付き）
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
+	
 	// サーバーを別ゴルーチンで起動
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- srv.Start(ctx)
 	}()
-
+	
 	// サーバーが起動するまで少し待つ
 	time.Sleep(100 * time.Millisecond)
-
+	
 	// コンテキストをキャンセルしてサーバーを停止
 	cancel()
-
+	
 	// エラーチャンネルから結果を受信
 	select {
 	case err := <-errCh:
@@ -67,13 +67,15 @@ func TestServerStartAndShutdown(t *testing.T) {
 	}
 }
 
-// TestServerEndpoints はサーバーのエンドポイントをテストする
-func TestServerEndpoints(t *testing.T) {
+// TestGinServerEndpoints はGinサーバーのエンドポイントをテストする
+func TestGinServerEndpoints(t *testing.T) {
+	// この関数はparallelを使わない（ポート競合回避のため）
+	
 	// テスト用の設定（利用可能なポートを使用）
 	cfg := &config.Config{
 		Server: config.ServerConfig{
 			Host:         "127.0.0.1",
-			Port:         8081, // 固定ポートでテスト
+			Port:         8082, // 固定ポートでテスト
 			ReadTimeout:  5 * time.Second,
 			WriteTimeout: 5 * time.Second,
 		},
@@ -90,24 +92,24 @@ func TestServerEndpoints(t *testing.T) {
 			},
 		},
 	}
-
-	// サーバーを作成
-	srv := New(cfg)
-
+	
+	// Ginサーバーを作成
+	srv := NewGin(cfg)
+	
 	// テスト用のコンテキスト
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
+	
 	// サーバーを別ゴルーチンで起動
 	go func() {
-		srv.Start(ctx)
+		_ = srv.Start(ctx)
 	}()
-
+	
 	// サーバーが起動するまで待つ
 	time.Sleep(500 * time.Millisecond)
-
+	
 	baseURL := fmt.Sprintf("http://%s", cfg.ServerAddress())
-
+	
 	// テストケース
 	testCases := []struct {
 		name           string
@@ -117,19 +119,24 @@ func TestServerEndpoints(t *testing.T) {
 		{"ルートエンドポイント", "/", http.StatusOK},
 		{"ヘルスチェックエンドポイント", "/health", http.StatusOK},
 		{"ステータスエンドポイント", "/api/status", http.StatusOK},
+		{"カメラ一覧エンドポイント", "/api/cameras", http.StatusOK},
+		{"存在しないカメラストリーム", "/api/cameras/nonexistent/stream", http.StatusNotFound},
 	}
-
+	
 	// 各エンドポイントをテスト
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// この内側のテストではparallelを使わない
 			resp, err := http.Get(baseURL + tc.endpoint)
 			if err != nil {
 				t.Fatalf("HTTPリクエストでエラーが発生しました: %v", err)
 			}
-			defer resp.Body.Close()
-
+			defer func() {
+				_ = resp.Body.Close()
+			}()
+			
 			if resp.StatusCode != tc.expectedStatus {
-				t.Errorf("予期しないステータスコード: got %d, want %d",
+				t.Errorf("予期しないステータスコード: got %d, want %d", 
 					resp.StatusCode, tc.expectedStatus)
 			}
 		})

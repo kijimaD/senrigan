@@ -1,9 +1,9 @@
+// Package main はSenrigan監視カメラシステムのメインエントリーポイントです
 package main
 
 import (
 	"context"
 	"log"
-	"os"
 
 	"senrigan/internal/config"
 	"senrigan/internal/server"
@@ -25,6 +25,5 @@ func main() {
 	// サーバーを起動
 	if err := srv.Start(ctx); err != nil {
 		log.Fatalf("サーバーの起動に失敗しました: %v", err)
-		os.Exit(1)
 	}
 }

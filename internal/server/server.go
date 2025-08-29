@@ -11,90 +11,43 @@ import (
 	"time"
 
 	"senrigan/internal/config"
+	"senrigan/internal/generated"
+
+	"github.com/gin-gonic/gin"
 )
 
-// Server はHTTPサーバーを管理する構造体
-type Server struct {
+// GinServer はGinベースのHTTPサーバーを管理する構造体
+type GinServer struct {
 	config     *config.Config
 	httpServer *http.Server
-	mux        *http.ServeMux
+	router     *gin.Engine
 }
 
-// New は新しいServerインスタンスを作成する
-func New(cfg *config.Config) *Server {
-	mux := http.NewServeMux()
+// NewGin は新しいGinServerインスタンスを作成する
+func NewGin(cfg *config.Config) *GinServer {
+	// 本番環境ではrelease modeに設定
+	gin.SetMode(gin.DebugMode)
 
-	return &Server{
+	router := gin.New()
+
+	// デフォルトミドルウェア
+	router.Use(gin.Logger())
+	router.Use(gin.Recovery())
+
+	return &GinServer{
 		config: cfg,
-		mux:    mux,
+		router: router,
 		httpServer: &http.Server{
 			Addr:         cfg.ServerAddress(),
-			Handler:      mux,
+			Handler:      router,
 			ReadTimeout:  cfg.Server.ReadTimeout,
 			WriteTimeout: cfg.Server.WriteTimeout,
 		},
 	}
 }
 
-// setupRoutes はHTTPルートを設定する
-func (s *Server) setupRoutes() {
-	// ヘルスチェックエンドポイント
-	s.mux.HandleFunc("/health", s.handleHealth)
-
-	// APIエンドポイント
-	s.mux.HandleFunc("/api/status", s.handleStatus)
-
-	// ルートハンドラ（簡単な確認用）
-	s.mux.HandleFunc("/", s.handleRoot)
-}
-
-// handleHealth はヘルスチェックエンドポイント
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `{"status":"healthy","timestamp":"%s"}`, time.Now().Format(time.RFC3339))
-}
-
-// handleStatus はステータス確認エンドポイント
-func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	// カメラ設定情報を含めたステータスを返す
-	fmt.Fprintf(w, `{
-		"status": "running",
-		"server": {
-			"host": "%s",
-			"port": %d
-		},
-		"cameras": %d,
-		"timestamp": "%s"
-	}`, s.config.Server.Host, s.config.Server.Port,
-		len(s.config.Camera.Devices),
-		time.Now().Format(time.RFC3339))
-}
-
-// handleRoot はルートパスのハンドラ
-func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <title>Senrigan - 監視カメラシステム</title>
-</head>
-<body>
-    <h1>Senrigan 監視カメラシステム</h1>
-    <p>サーバーが正常に起動しています。</p>
-    <p>ステータス: <a href="/api/status">/api/status</a></p>
-    <p>ヘルスチェック: <a href="/health">/health</a></p>
-</body>
-</html>`)
-}
-
 // Start はサーバーを起動する
-func (s *Server) Start(ctx context.Context) error {
+func (s *GinServer) Start(ctx context.Context) error {
 	// ルートを設定
 	s.setupRoutes()
 
@@ -103,7 +56,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	// サーバーを別ゴルーチンで起動
 	go func() {
-		log.Printf("HTTPサーバーを起動しています: %s", s.config.ServerAddress())
+		log.Printf("Gin HTTPサーバーを起動しています: %s", s.config.ServerAddress())
 		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			shutdownCh <- fmt.Errorf("サーバーの起動に失敗: %w", err)
 		}
@@ -128,7 +81,7 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 // Shutdown はサーバーをグレースフルにシャットダウンする
-func (s *Server) Shutdown() error {
+func (s *GinServer) Shutdown() error {
 	log.Println("サーバーをシャットダウンしています...")
 
 	// 5秒のタイムアウトを設定
@@ -141,4 +94,40 @@ func (s *Server) Shutdown() error {
 
 	log.Println("サーバーが正常にシャットダウンされました")
 	return nil
+}
+
+// setupRoutes はHTTPルートを設定する
+func (s *GinServer) setupRoutes() {
+	// ServerInterfaceを実装したハンドラーを作成
+	handler := &SenriganHandler{
+		config: s.config,
+	}
+
+	// 生成されたルートを登録
+	generated.RegisterHandlers(s.router, handler)
+
+	// 静的ファイル配信（将来的に追加予定）
+	// s.router.Static("/static", "./front")
+
+	// ルートパス（HTMLページ）
+	s.router.GET("/", s.handleRoot)
+}
+
+// handleRoot はルートパスのハンドラ（HTMLページ）
+func (s *GinServer) handleRoot(c *gin.Context) {
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.String(http.StatusOK, `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Senrigan - 監視カメラシステム</title>
+</head>
+<body>
+    <h1>Senrigan 監視カメラシステム</h1>
+    <p>サーバーが正常に起動しています。</p>
+    <p>ステータス: <a href="/api/status">/api/status</a></p>
+    <p>ヘルスチェック: <a href="/health">/health</a></p>
+    <p>カメラ一覧: <a href="/api/cameras">/api/cameras</a></p>
+</body>
+</html>`)
 }
