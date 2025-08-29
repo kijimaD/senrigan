@@ -1,3 +1,4 @@
 bin
 oas/output
 frontend/node_modules
+frontend/dist
