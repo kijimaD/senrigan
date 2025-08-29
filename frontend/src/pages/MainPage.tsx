@@ -1,21 +1,7 @@
 import { useEffect, useState } from "react";
-
-interface CameraInfo {
-  id: string;
-  name: string;
-  device: string;
-  status?: string;
-}
-
-interface StatusResponse {
-  status: string;
-  server: {
-    host: string;
-    port: number;
-  };
-  cameras: number;
-  timestamp: string;
-}
+import { StatusApi, CameraApi } from "../generated/api";
+import type { StatusResponse, CameraInfo, ErrorResponse } from "../generated/api";
+import { AxiosError } from "axios";
 
 export function MainPage() {
   const [status, setStatus] = useState<StatusResponse | null>(null);
@@ -26,22 +12,25 @@ export function MainPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const statusApi = new StatusApi();
+        const cameraApi = new CameraApi();
+
         // システム状態を取得
-        const statusResponse = await fetch("http://localhost:8080/api/status");
-        if (statusResponse.ok) {
-          const statusData = await statusResponse.json();
-          setStatus(statusData);
-        }
+        const statusResponse = await statusApi.getStatus();
+        setStatus(statusResponse.data);
 
         // カメラ一覧を取得
-        const camerasResponse = await fetch("http://localhost:8080/api/cameras");
-        if (camerasResponse.ok) {
-          const camerasData = await camerasResponse.json();
-          setCameras(camerasData.cameras || []);
-        }
+        const camerasResponse = await cameraApi.getCameras();
+        setCameras(camerasResponse.data.cameras);
       } catch (err) {
-        setError("データの取得に失敗しました");
-        console.error("API fetch error:", err);
+        if (err instanceof AxiosError && err.response?.data) {
+          const errorData = err.response.data as ErrorResponse;
+          setError(`エラー: ${errorData.message}`);
+          console.error("API Error:", errorData);
+        } else {
+          setError("データの取得に失敗しました");
+          console.error("API fetch error:", err);
+        }
       } finally {
         setLoading(false);
       }
@@ -106,6 +95,8 @@ export function MainPage() {
                 <h3 style={{ margin: "0 0 10px 0" }}>{camera.name}</h3>
                 <p><strong>ID:</strong> {camera.id}</p>
                 <p><strong>デバイス:</strong> {camera.device}</p>
+                <p><strong>解像度:</strong> {camera.settings.width}x{camera.settings.height}</p>
+                <p><strong>フレームレート:</strong> {camera.settings.fps}fps</p>
                 <p><strong>状態:</strong> <span style={{ 
                   color: camera.status === 'active' ? 'green' : 
                         camera.status === 'error' ? 'red' : 'gray'
