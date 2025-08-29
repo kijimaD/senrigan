@@ -16,8 +16,8 @@ func main() {
 		log.Fatalf("設定の読み込みに失敗しました: %v", err)
 	}
 
-	// サーバーを作成
-	srv := server.New(cfg)
+	// Ginサーバーを作成
+	srv := server.NewGin(cfg)
 
 	// コンテキストを作成
 	ctx := context.Background()

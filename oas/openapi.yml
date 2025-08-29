@@ -1,192 +1,257 @@
-# TODO: Planetizerから取ってきた。書き換える
 openapi: 3.0.3
 info:
   title: Senrigan API
+  description: 監視カメラシステム Senrigan のAPI仕様
   version: 1.0.0
-  description: Senrigan API!
+  contact:
+    name: Senrigan Team
+
+servers:
+  - url: http://localhost:8080
+    description: 開発サーバー
 
 paths:
-  # フロントのコード生成時に未使用エラーになるので必要...
-  /dummy:
+  /health:
     get:
-      summary: dummy
-      description: dummy
-      operationId: dummy
-      parameters: []
-      responses: {}
+      summary: ヘルスチェック
+      description: サーバーの稼働状況を確認します
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: サーバーが正常に動作中
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  
+  /api/status:
+    get:
+      summary: システム状態取得
+      description: サーバーとカメラの詳細な状態情報を取得します
+      operationId: getStatus
+      tags:
+        - Status
+      responses:
+        '200':
+          description: システム状態情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/cameras:
+    get:
+      summary: カメラ一覧取得
+      description: 設定されているカメラの一覧を取得します
+      operationId: getCameras
+      tags:
+        - Camera
+      responses:
+        '200':
+          description: カメラ一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CamerasResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/cameras/{cameraId}/stream:
+    get:
+      summary: カメラストリーム接続
+      description: 指定されたカメラのストリーミングに接続します（WebSocket）
+      operationId: getCameraStream
+      tags:
+        - Camera
+      parameters:
+        - name: cameraId
+          in: path
+          required: true
+          description: カメラID
+          schema:
+            type: string
+            example: "camera1"
+      responses:
+        '101':
+          description: WebSocket接続にアップグレード
+        '404':
+          description: カメラが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   schemas:
-    # 構造体 ================
-    Config:
+    HealthResponse:
       type: object
+      required:
+        - status
+        - timestamp
       properties:
-        sources:
+        status:
+          type: string
+          enum: [healthy]
+          description: サーバーの稼働状況
+          example: "healthy"
+        timestamp:
+          type: string
+          format: date-time
+          description: レスポンス生成時刻（RFC3339形式）
+          example: "2023-10-01T12:00:00Z"
+    
+    StatusResponse:
+      type: object
+      required:
+        - status
+        - server
+        - cameras
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [running, starting, stopping]
+          description: システムの動作状態
+          example: "running"
+        server:
+          $ref: '#/components/schemas/ServerInfo'
+        cameras:
+          type: integer
+          description: 設定されているカメラの台数
+          minimum: 0
+          example: 1
+        timestamp:
+          type: string
+          format: date-time
+          description: レスポンス生成時刻（RFC3339形式）
+          example: "2023-10-01T12:00:00Z"
+    
+    ServerInfo:
+      type: object
+      required:
+        - host
+        - port
+      properties:
+        host:
+          type: string
+          description: サーバーのリッスンホスト
+          example: "0.0.0.0"
+        port:
+          type: integer
+          description: サーバーのリッスンポート
+          minimum: 1
+          maximum: 65535
+          example: 8080
+    
+    CamerasResponse:
+      type: object
+      required:
+        - cameras
+      properties:
+        cameras:
           type: array
           items:
-            $ref: "#/components/schemas/ConfigSource"
-        tags:
-          type: array
-          items:
-            $ref: "#/components/schemas/ConfigTag"
-      required:
-        - sources
-        - tags
-
-    ConfigSource:
+            $ref: '#/components/schemas/CameraInfo'
+          description: カメラ情報の配列
+    
+    CameraInfo:
       type: object
-      properties:
-        rss_url:
-          $ref: "#/components/schemas/SourceRssUrl"
-        name:
-          $ref: "#/components/schemas/SourceName"
-        desc:
-          $ref: "#/components/schemas/SourceDesc"
-        tags:
-          $ref: "#/components/schemas/SourceTagList"
-        initial_visible:
-          $ref: "#/components/schemas/SourceInitialVisible"
       required:
-        - rss_url
+        - id
         - name
-        - desc
-        - tags
-        - initial_visible
-
-    ConfigTag:
-      type: object
+        - device
+        - settings
       properties:
+        id:
+          type: string
+          description: カメラの一意識別子
+          example: "camera1"
         name:
-          $ref: "#/components/schemas/SourceTagName"
-        desc:
-          $ref: "#/components/schemas/SourceTagDesc"
-      required:
-        - name
-        - desc
-
-    FeedResult:
+          type: string
+          description: カメラの表示名
+          example: "メインカメラ"
+        device:
+          type: string
+          description: カメラデバイスのパス
+          example: "/dev/video0"
+        settings:
+          $ref: '#/components/schemas/CameraSettings'
+        status:
+          type: string
+          enum: [active, inactive, error]
+          description: カメラの動作状態
+          example: "active"
+    
+    CameraSettings:
       type: object
-      properties:
-        config:
-          $ref: "#/components/schemas/Config"
-        generated_at:
-          $ref: "#/components/schemas/FeedGeneratedAt"
-        entries:
-          type: array
-          items:
-            $ref: "#/components/schemas/FeedEntry"
-        source_map:
-            $ref: "#/components/schemas/SourceMap"
       required:
-        - config
-        - generated_at
-        - entries
-        - source_map
-
-    SourceMap:
-       type: object
-       additionalProperties:
-         type: object
-         properties:
-           entry_count:
-             type: integer
-           config_source:
-             $ref: "#/components/schemas/ConfigSource"
-         required:
-           - entry_count
-           - config_source
-
-    FeedEntry:
+        - fps
+        - width
+        - height
+      properties:
+        fps:
+          type: integer
+          description: フレームレート（fps）
+          minimum: 1
+          maximum: 60
+          example: 15
+        width:
+          type: integer
+          description: 画像の幅（ピクセル）
+          minimum: 1
+          example: 1280
+        height:
+          type: integer
+          description: 画像の高さ（ピクセル）
+          minimum: 1
+          example: 720
+    
+    ErrorResponse:
       type: object
-      properties:
-        title:
-          $ref: "#/components/schemas/FeedTitle"
-        link:
-          $ref: "#/components/schemas/FeedLink"
-        published:
-          $ref: "#/components/schemas/FeedPublished"
-        summary:
-          $ref: "#/components/schemas/FeedSummary"
-        # サイトから取得した名前
-        feed_source:
-          $ref: "#/components/schemas/FeedSource"
-        # 設定ファイルから取得した名前
-        config_source:
-          $ref: "#/components/schemas/SourceName"
       required:
-        - title
-        - link
-        - published
-        - summary
-        - feed_source
-        - config_source
+        - error
+        - message
+        - timestamp
+      properties:
+        error:
+          type: string
+          description: エラーの種類
+          example: "internal_server_error"
+        message:
+          type: string
+          description: エラーメッセージ
+          example: "予期しないエラーが発生しました"
+        details:
+          type: string
+          description: エラーの詳細情報（開発用）
+        timestamp:
+          type: string
+          format: date-time
+          description: エラー発生時刻（RFC3339形式）
+          example: "2023-10-01T12:00:00Z"
 
-    # フィールド ================
-    SourceRssUrl:
-      type: string
-      format: uri
-      example: "https://example.com/feed.atom"
-      description: 設定ファイルでのRSSのURL
-
-    SourceName:
-      type: string
-      example: "example"
-      description: 設定ファイルでのRSS配信元の名前
-
-    SourceDesc:
-      type: string
-      example: "Goチームによる公式ブログ"
-      description: 設定ファイルでのRSS配信元の説明
-
-    SourceInitialVisible:
-      type: boolean
-      description: 設定ファイルでの読み込んだ直後の可視状態
-
-    SourceTagName:
-      type: string
-      example: "go"
-      description: RSS配信元についたタグ
-
-    SourceTagList:
-      type: array
-      items:
-        $ref: "#/components/schemas/SourceTagName"
-      description: RSS配信元についたタグ一覧
-
-    SourceTagDesc:
-      type: string
-      example: "Goに関する内容のタグ"
-      description: RSS配信元についたタグの概要
-
-    FeedGeneratedAt:
-      type: string
-      format: date-time
-      example: "2025-06-13T09:31:07Z"
-      description: フィードキュレーションを実行した日時
-
-    FeedTitle:
-      type: string
-      example: "記事のタイトル"
-      description: フィードエントリのタイトル
-
-    FeedLink:
-      type: string
-      format: uri
-      example: "https://example.com/article/1"
-      description: フィードエントリのURL
-
-    FeedPublished:
-      type: string
-      format: date-time
-      example: "2025-06-13T09:31:07Z"
-      description: フィードエントリの公開日時
-
-    FeedSummary:
-      type: string
-      example: "記事の概要"
-      description: フィードエントリの概要
-
-    FeedSource:
-      type: string
-      example: "example site"
-      description: フィードエントリの配信サイトの名前
+tags:
+  - name: Health
+    description: ヘルスチェック関連のエンドポイント
+  - name: Status
+    description: システム状態管理
+  - name: Camera
+    description: カメラ制御とストリーミング

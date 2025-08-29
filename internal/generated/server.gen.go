@@ -4,14 +4,27 @@
 package generated
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
+	"github.com/oapi-codegen/runtime"
 )
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// dummy
-	// (GET /dummy)
-	Dummy(c *gin.Context)
+	// カメラ一覧取得
+	// (GET /api/cameras)
+	GetCameras(c *gin.Context)
+	// カメラストリーム接続
+	// (GET /api/cameras/{cameraId}/stream)
+	GetCameraStream(c *gin.Context, cameraId string)
+	// システム状態取得
+	// (GET /api/status)
+	GetStatus(c *gin.Context)
+	// ヘルスチェック
+	// (GET /health)
+	HealthCheck(c *gin.Context)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -23,8 +36,8 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(c *gin.Context)
 
-// Dummy operation middleware
-func (siw *ServerInterfaceWrapper) Dummy(c *gin.Context) {
+// GetCameras operation middleware
+func (siw *ServerInterfaceWrapper) GetCameras(c *gin.Context) {
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
@@ -33,7 +46,57 @@ func (siw *ServerInterfaceWrapper) Dummy(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.Dummy(c)
+	siw.Handler.GetCameras(c)
+}
+
+// GetCameraStream operation middleware
+func (siw *ServerInterfaceWrapper) GetCameraStream(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "cameraId" -------------
+	var cameraId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "cameraId", c.Param("cameraId"), &cameraId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter cameraId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetCameraStream(c, cameraId)
+}
+
+// GetStatus operation middleware
+func (siw *ServerInterfaceWrapper) GetStatus(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetStatus(c)
+}
+
+// HealthCheck operation middleware
+func (siw *ServerInterfaceWrapper) HealthCheck(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.HealthCheck(c)
 }
 
 // GinServerOptions provides options for the Gin server.
@@ -63,5 +126,8 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
-	router.GET(options.BaseURL+"/dummy", wrapper.Dummy)
+	router.GET(options.BaseURL+"/api/cameras", wrapper.GetCameras)
+	router.GET(options.BaseURL+"/api/cameras/:cameraId/stream", wrapper.GetCameraStream)
+	router.GET(options.BaseURL+"/api/status", wrapper.GetStatus)
+	router.GET(options.BaseURL+"/health", wrapper.HealthCheck)
 }

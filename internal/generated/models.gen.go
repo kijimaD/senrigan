@@ -7,111 +7,110 @@ import (
 	"time"
 )
 
-// Config defines model for Config.
-type Config struct {
-	Sources []ConfigSource `json:"sources"`
-	Tags    []ConfigTag    `json:"tags"`
+// Defines values for CameraInfoStatus.
+const (
+	Active   CameraInfoStatus = "active"
+	Error    CameraInfoStatus = "error"
+	Inactive CameraInfoStatus = "inactive"
+)
+
+// Defines values for HealthResponseStatus.
+const (
+	Healthy HealthResponseStatus = "healthy"
+)
+
+// Defines values for StatusResponseStatus.
+const (
+	Running  StatusResponseStatus = "running"
+	Starting StatusResponseStatus = "starting"
+	Stopping StatusResponseStatus = "stopping"
+)
+
+// CameraInfo defines model for CameraInfo.
+type CameraInfo struct {
+	// Device カメラデバイスのパス
+	Device string `json:"device"`
+
+	// Id カメラの一意識別子
+	Id string `json:"id"`
+
+	// Name カメラの表示名
+	Name     string         `json:"name"`
+	Settings CameraSettings `json:"settings"`
+
+	// Status カメラの動作状態
+	Status *CameraInfoStatus `json:"status,omitempty"`
 }
 
-// ConfigSource defines model for ConfigSource.
-type ConfigSource struct {
-	// Desc 設定ファイルでのRSS配信元の説明
-	Desc SourceDesc `json:"desc"`
+// CameraInfoStatus カメラの動作状態
+type CameraInfoStatus string
 
-	// InitialVisible 設定ファイルでの読み込んだ直後の可視状態
-	InitialVisible SourceInitialVisible `json:"initial_visible"`
+// CameraSettings defines model for CameraSettings.
+type CameraSettings struct {
+	// Fps フレームレート（fps）
+	Fps int `json:"fps"`
 
-	// Name 設定ファイルでのRSS配信元の名前
-	Name SourceName `json:"name"`
+	// Height 画像の高さ（ピクセル）
+	Height int `json:"height"`
 
-	// RssUrl 設定ファイルでのRSSのURL
-	RssUrl SourceRssUrl `json:"rss_url"`
-
-	// Tags RSS配信元についたタグ一覧
-	Tags SourceTagList `json:"tags"`
+	// Width 画像の幅（ピクセル）
+	Width int `json:"width"`
 }
 
-// ConfigTag defines model for ConfigTag.
-type ConfigTag struct {
-	// Desc RSS配信元についたタグの概要
-	Desc SourceTagDesc `json:"desc"`
-
-	// Name RSS配信元についたタグ
-	Name SourceTagName `json:"name"`
+// CamerasResponse defines model for CamerasResponse.
+type CamerasResponse struct {
+	// Cameras カメラ情報の配列
+	Cameras []CameraInfo `json:"cameras"`
 }
 
-// FeedEntry defines model for FeedEntry.
-type FeedEntry struct {
-	// ConfigSource 設定ファイルでのRSS配信元の名前
-	ConfigSource SourceName `json:"config_source"`
+// ErrorResponse defines model for ErrorResponse.
+type ErrorResponse struct {
+	// Details エラーの詳細情報（開発用）
+	Details *string `json:"details,omitempty"`
 
-	// FeedSource フィードエントリの配信サイトの名前
-	FeedSource FeedSource `json:"feed_source"`
+	// Error エラーの種類
+	Error string `json:"error"`
 
-	// Link フィードエントリのURL
-	Link FeedLink `json:"link"`
+	// Message エラーメッセージ
+	Message string `json:"message"`
 
-	// Published フィードエントリの公開日時
-	Published FeedPublished `json:"published"`
-
-	// Summary フィードエントリの概要
-	Summary FeedSummary `json:"summary"`
-
-	// Title フィードエントリのタイトル
-	Title FeedTitle `json:"title"`
+	// Timestamp エラー発生時刻（RFC3339形式）
+	Timestamp time.Time `json:"timestamp"`
 }
 
-// FeedGeneratedAt フィードキュレーションを実行した日時
-type FeedGeneratedAt = time.Time
+// HealthResponse defines model for HealthResponse.
+type HealthResponse struct {
+	// Status サーバーの稼働状況
+	Status HealthResponseStatus `json:"status"`
 
-// FeedLink フィードエントリのURL
-type FeedLink = string
-
-// FeedPublished フィードエントリの公開日時
-type FeedPublished = time.Time
-
-// FeedResult defines model for FeedResult.
-type FeedResult struct {
-	Config  Config      `json:"config"`
-	Entries []FeedEntry `json:"entries"`
-
-	// GeneratedAt フィードキュレーションを実行した日時
-	GeneratedAt FeedGeneratedAt `json:"generated_at"`
-	SourceMap   SourceMap       `json:"source_map"`
+	// Timestamp レスポンス生成時刻（RFC3339形式）
+	Timestamp time.Time `json:"timestamp"`
 }
 
-// FeedSource フィードエントリの配信サイトの名前
-type FeedSource = string
+// HealthResponseStatus サーバーの稼働状況
+type HealthResponseStatus string
 
-// FeedSummary フィードエントリの概要
-type FeedSummary = string
+// ServerInfo defines model for ServerInfo.
+type ServerInfo struct {
+	// Host サーバーのリッスンホスト
+	Host string `json:"host"`
 
-// FeedTitle フィードエントリのタイトル
-type FeedTitle = string
-
-// SourceDesc 設定ファイルでのRSS配信元の説明
-type SourceDesc = string
-
-// SourceInitialVisible 設定ファイルでの読み込んだ直後の可視状態
-type SourceInitialVisible = bool
-
-// SourceMap defines model for SourceMap.
-type SourceMap map[string]struct {
-	ConfigSource ConfigSource `json:"config_source"`
-	EntryCount   int          `json:"entry_count"`
+	// Port サーバーのリッスンポート
+	Port int `json:"port"`
 }
 
-// SourceName 設定ファイルでのRSS配信元の名前
-type SourceName = string
+// StatusResponse defines model for StatusResponse.
+type StatusResponse struct {
+	// Cameras 設定されているカメラの台数
+	Cameras int        `json:"cameras"`
+	Server  ServerInfo `json:"server"`
 
-// SourceRssUrl 設定ファイルでのRSSのURL
-type SourceRssUrl = string
+	// Status システムの動作状態
+	Status StatusResponseStatus `json:"status"`
 
-// SourceTagDesc RSS配信元についたタグの概要
-type SourceTagDesc = string
+	// Timestamp レスポンス生成時刻（RFC3339形式）
+	Timestamp time.Time `json:"timestamp"`
+}
 
-// SourceTagList RSS配信元についたタグ一覧
-type SourceTagList = []SourceTagName
-
-// SourceTagName RSS配信元についたタグ
-type SourceTagName = string
+// StatusResponseStatus システムの動作状態
+type StatusResponseStatus string

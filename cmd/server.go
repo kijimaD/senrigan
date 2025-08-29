@@ -47,8 +47,8 @@ func main() {
 		cfg.Server.Port = *port
 	}
 
-	// サーバーを作成
-	srv := server.New(cfg)
+	// Ginサーバーを作成
+	srv := server.NewGin(cfg)
 
 	// コンテキストを作成
 	ctx := context.Background()
