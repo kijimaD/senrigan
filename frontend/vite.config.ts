@@ -7,19 +7,17 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     outDir: "../internal/server/dist/",
     rollupOptions: {
       input: "./index.html",
     },
-  },
-  define: {
-    // バックエンドベースURL（開発時・本番時で切り替え可能）
-    // 本番: "" (相対パス) - 同一ホストで配信
-    // 開発: "http://localhost:8080" - 分離サーバー
-    __BACKEND_BASE_URL__: JSON.stringify(
-      process.env.VITE_BACKEND_BASE_URL || "",
-    ),
   },
 });
