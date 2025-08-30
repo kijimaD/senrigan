@@ -9,7 +9,7 @@ export default defineConfig({
     host: true,
   },
   build: {
-    outDir: "dist",
+    outDir: "../internal/server/dist/",
     rollupOptions: {
       input: "./index.html",
     },

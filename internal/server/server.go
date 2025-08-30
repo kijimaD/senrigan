@@ -144,9 +144,11 @@ func (s *GinServer) setupRoutes() {
 	// 生成されたルートを登録（OpenAPI仕様に基づく）
 	generated.RegisterHandlers(s.router, handler)
 
-	// フロントエンドの静的ファイルを配信
-	s.router.Static("/assets", "./frontend/dist/assets")
-	s.router.StaticFile("/favicon.ico", "./frontend/dist/favicon.ico")
+	// フロントエンドの静的ファイルを配信（embed）
+	s.router.StaticFS("/assets", GetAssetsFS())
+	s.router.GET("/favicon.ico", func(c *gin.Context) {
+		c.FileFromFS("favicon.ico", GetStaticFS())
+	})
 
 	// SPAのためのフォールバック（APIルート以外はindex.htmlを返す）
 	s.router.NoRoute(func(c *gin.Context) {
@@ -156,6 +158,6 @@ func (s *GinServer) setupRoutes() {
 			return
 		}
 		// それ以外はindex.htmlを配信（SPAルーティング用）
-		c.File("./frontend/dist/index.html")
+		c.Data(http.StatusOK, "text/html; charset=utf-8", getIndexHTML())
 	})
 }
