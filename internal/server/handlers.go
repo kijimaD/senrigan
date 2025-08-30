@@ -2,7 +2,6 @@ package server
 
 import (
 	"net/http"
-	"time"
 
 	"senrigan/internal/camera"
 	"senrigan/internal/config"
@@ -20,8 +19,7 @@ type SenriganHandler struct {
 // HealthCheck はヘルスチェックエンドポイントの実装
 func (h *SenriganHandler) HealthCheck(c *gin.Context) {
 	response := generated.HealthResponse{
-		Status:    generated.Healthy,
-		Timestamp: time.Now(),
+		Status: generated.Healthy,
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -83,9 +81,8 @@ func (h *SenriganHandler) GetCameraStream(c *gin.Context, cameraID string) {
 	cam, found := h.cameraManager.GetCamera(cameraID)
 	if !found {
 		errorResponse := generated.ErrorResponse{
-			Error:     "camera_not_found",
-			Message:   "指定されたカメラが見つかりません",
-			Timestamp: time.Now(),
+			Error:   "camera_not_found",
+			Message: "指定されたカメラが見つかりません",
 		}
 		c.JSON(http.StatusNotFound, errorResponse)
 		return
@@ -94,9 +91,8 @@ func (h *SenriganHandler) GetCameraStream(c *gin.Context, cameraID string) {
 	// カメラがアクティブか確認
 	if cam.Status != camera.StatusActive {
 		errorResponse := generated.ErrorResponse{
-			Error:     "camera_not_active",
-			Message:   "カメラがアクティブではありません",
-			Timestamp: time.Now(),
+			Error:   "camera_not_active",
+			Message: "カメラがアクティブではありません",
 		}
 		c.JSON(http.StatusServiceUnavailable, errorResponse)
 		return
@@ -112,9 +108,8 @@ func (h *SenriganHandler) GetCameraWebSocket(c *gin.Context, cameraID string) {
 	_, found := h.cameraManager.GetCamera(cameraID)
 	if !found {
 		errorResponse := generated.ErrorResponse{
-			Error:     "camera_not_found",
-			Message:   "指定されたカメラが見つかりません",
-			Timestamp: time.Now(),
+			Error:   "camera_not_found",
+			Message: "指定されたカメラが見つかりません",
 		}
 		c.JSON(http.StatusNotFound, errorResponse)
 		return
@@ -122,10 +117,9 @@ func (h *SenriganHandler) GetCameraWebSocket(c *gin.Context, cameraID string) {
 
 	// WebSocket機能は未実装
 	errorResponse := generated.ErrorResponse{
-		Error:     "not_implemented",
-		Message:   "WebSocketストリーミング機能は未実装です",
-		Details:   stringPtr("将来的に実装予定です"),
-		Timestamp: time.Now(),
+		Error:   "not_implemented",
+		Message: "WebSocketストリーミング機能は未実装です",
+		Details: stringPtr("将来的に実装予定です"),
 	}
 	c.JSON(http.StatusNotImplemented, errorResponse)
 }

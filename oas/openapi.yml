@@ -141,18 +141,12 @@ components:
       type: object
       required:
         - status
-        - timestamp
       properties:
         status:
           type: string
           enum: [healthy]
           description: サーバーの稼働状況
           example: "healthy"
-        timestamp:
-          type: string
-          format: date-time
-          description: レスポンス生成時刻（RFC3339形式）
-          example: "2023-10-01T12:00:00Z"
     
     StatusResponse:
       type: object
@@ -259,7 +253,6 @@ components:
       required:
         - error
         - message
-        - timestamp
       properties:
         error:
           type: string
@@ -272,11 +265,6 @@ components:
         details:
           type: string
           description: エラーの詳細情報（開発用）
-        timestamp:
-          type: string
-          format: date-time
-          description: エラー発生時刻（RFC3339形式）
-          example: "2023-10-01T12:00:00Z"
 
 tags:
   - name: Health

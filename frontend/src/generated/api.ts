@@ -131,12 +131,6 @@ export interface ErrorResponse {
      * @memberof ErrorResponse
      */
     'details'?: string;
-    /**
-     * エラー発生時刻（RFC3339形式）
-     * @type {string}
-     * @memberof ErrorResponse
-     */
-    'timestamp': string;
 }
 /**
  * 
@@ -150,12 +144,6 @@ export interface HealthResponse {
      * @memberof HealthResponse
      */
     'status': HealthResponseStatusEnum;
-    /**
-     * レスポンス生成時刻（RFC3339形式）
-     * @type {string}
-     * @memberof HealthResponse
-     */
-    'timestamp': string;
 }
 
 export const HealthResponseStatusEnum = {
