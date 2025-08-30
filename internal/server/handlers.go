@@ -35,7 +35,7 @@ func (h *SenriganHandler) GetStatus(c *gin.Context) {
 			Host: h.config.Server.Host,
 			Port: h.config.Server.Port,
 		},
-		Cameras:   len(h.config.Camera.Devices),
+		Cameras:   len(h.cameraManager.GetCameras()),
 		Timestamp: time.Now(),
 	}
 
