@@ -18,7 +18,7 @@ V4L2対応カメラを使用するため、以下のライブラリが必要で�
 # Ubuntu/Debian
 sudo apt install v4l-utils
 
-# Red Hat/CentOS/Fedora  
+# Red Hat/CentOS/Fedora
 sudo yum install v4l-utils
 # または
 sudo dnf install v4l-utils
@@ -76,7 +76,7 @@ OpenAPI仕様は `/oas/openapi.yml` にあります。
 - `GET /health` - ヘルスチェック
 - `GET /api/status` - システム状態
 - `GET /api/cameras` - カメラ一覧
-- `GET /api/cameras/{id}/stream` - カメラストリーム（未実装）
+- `GET /api/cameras/{id}/stream` - カメラストリーム
 
 ## 開発用コマンド
 

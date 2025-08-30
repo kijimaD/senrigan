@@ -57,16 +57,7 @@ func Load() (*Config, error) {
 			WriteTimeout: 0, // ストリーミング用にタイムアウト無効化
 		},
 		Camera: CameraConfig{
-			Devices: []CameraDevice{
-				{
-					ID:     "camera1",
-					Name:   "メインカメラ",
-					Device: "/dev/video0",
-					FPS:    15,
-					Width:  1280,
-					Height: 720,
-				},
-			},
+			Devices:       []CameraDevice{},
 			DefaultFPS:    15,
 			DefaultWidth:  1280,
 			DefaultHeight: 720,
@@ -86,20 +77,6 @@ func (c *Config) Validate() error {
 	// サーバー設定の検証
 	if c.Server.Port < 1 || c.Server.Port > 65535 {
 		return fmt.Errorf("無効なポート番号: %d", c.Server.Port)
-	}
-
-	// カメラ設定の検証
-	if len(c.Camera.Devices) == 0 {
-		return fmt.Errorf("カメラデバイスが設定されていません")
-	}
-
-	for _, device := range c.Camera.Devices {
-		if device.ID == "" {
-			return fmt.Errorf("カメラIDが設定されていません")
-		}
-		if device.Device == "" {
-			return fmt.Errorf("カメラデバイスパスが設定されていません: %s", device.ID)
-		}
 	}
 
 	return nil
