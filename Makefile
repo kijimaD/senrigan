@@ -41,10 +41,6 @@ frontend-build: ## フロントエンドを本番用にビルド
 frontend-dev: ## フロントエンド開発サーバを起動（ポート3000）
 	cd frontend && npm run dev
 
-.PHONY: backend-dev
-backend-dev: ## バックエンド開発サーバを起動（ポート8080）
-	go run .
-
 .PHONY: production
 production: frontend-build build ## 本番用ビルド（フロントエンド + バックエンド統合）
 	@echo "本番用ビルドが完了しました！"

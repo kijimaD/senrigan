@@ -15,8 +15,10 @@ export function CameraStream({
   height = 480,
 }: CameraStreamProps) {
   const imgRef = useRef<HTMLImageElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     if (!imgRef.current) return;
@@ -51,14 +53,45 @@ export function CameraStream({
     };
   }, [cameraId]);
 
+  // フルスクリーンのトグル
+  const toggleFullscreen = async () => {
+    if (!containerRef.current) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        await containerRef.current.requestFullscreen();
+        setIsFullscreen(true);
+      } else {
+        await document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    } catch (err) {
+      console.error("フルスクリーンの切り替えに失敗:", err);
+    }
+  };
+
+  // フルスクリーンの変更を監視
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
   return (
     <div
+      ref={containerRef}
       style={{
         position: "relative",
         width: "100%",
-        paddingBottom: `${(height / width) * 100}%`,
+        paddingBottom: isFullscreen ? "0" : `${(height / width) * 100}%`,
+        height: isFullscreen ? "100vh" : "auto",
         backgroundColor: "#000",
-        borderRadius: "4px",
+        borderRadius: isFullscreen ? "0" : "4px",
         overflow: "hidden",
       }}
     >
@@ -124,6 +157,40 @@ export function CameraStream({
           display: hasError ? "none" : "block",
         }}
       />
+
+      {/* フルスクリーンボタン */}
+      {!hasError && !isLoading && (
+        <button
+          onClick={toggleFullscreen}
+          style={{
+            position: "absolute",
+            top: "10px",
+            right: "10px",
+            width: "40px",
+            height: "40px",
+            borderRadius: "4px",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            border: "1px solid rgba(255, 255, 255, 0.3)",
+            color: "#fff",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "20px",
+            transition: "background-color 0.2s",
+            zIndex: 10,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+          }}
+          title={isFullscreen ? "フルスクリーンを終了" : "フルスクリーン"}
+        >
+          {isFullscreen ? "◱" : "◰"}
+        </button>
+      )}
 
       {/* アニメーション用のスタイル */}
       <style>{`
