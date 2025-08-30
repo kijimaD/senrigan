@@ -22,7 +22,6 @@ type X11ScreenSource struct {
 	internalErrorChan chan error
 }
 
-
 // Start は画面キャプチャを開始する
 func (s *X11ScreenSource) Start(ctx context.Context) error {
 	s.mu.Lock()
@@ -111,7 +110,6 @@ func (s *X11ScreenSource) ApplySettings(ctx context.Context, settings VideoSetti
 	return nil
 }
 
-
 // forwardFrames はキャプチャからフレームを転送する
 func (s *X11ScreenSource) forwardFrames() {
 	defer s.wg.Done()
@@ -177,7 +175,7 @@ func NewX11ScreenSourceFromConfig(config SourceConfig) (VideoSource, error) {
 	// デフォルト設定
 	width := 1920
 	height := 1080
-	fps := 10
+	fps := 15
 
 	// 設定が指定されている場合は使用
 	if config.Settings.Width > 0 {

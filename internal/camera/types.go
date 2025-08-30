@@ -14,8 +14,6 @@ const (
 	StatusError    Status = "error"    // カメラでエラーが発生
 )
 
-
-
 // Manager はカメラの動的管理を担うインターフェース
 type Manager interface {
 	// Start はカメラマネージャーを開始する
@@ -67,4 +65,3 @@ type Resolution struct {
 	Width  int // 幅
 	Height int // 高さ
 }
-

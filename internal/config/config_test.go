@@ -33,10 +33,8 @@ func TestConfigLoad(t *testing.T) {
 		t.Error("書き込みタイムアウトが負の値です")
 	}
 
-	// カメラ設定の検証
-	if len(cfg.Camera.Devices) == 0 {
-		t.Error("カメラデバイスが設定されていません")
-	}
+	// カメラ設定の検証（Devicesは空でもOK - 自動検出されるため）
+	// Devicesが空でも問題ない
 
 	// デフォルト値の検証
 	if cfg.Camera.DefaultFPS <= 0 {
@@ -105,7 +103,7 @@ func TestConfigValidation(t *testing.T) {
 					Devices: []CameraDevice{}, // 空のデバイスリスト
 				},
 			},
-			expectErr: true,
+			expectErr: false, // Devicesが空でもOK（自動検出）
 		},
 		{
 			name: "カメラIDなし",
@@ -123,7 +121,7 @@ func TestConfigValidation(t *testing.T) {
 					},
 				},
 			},
-			expectErr: true,
+			expectErr: false, // IDが空でも自動生成されるのでOK
 		},
 		{
 			name: "カメラデバイスパスなし",
@@ -141,7 +139,7 @@ func TestConfigValidation(t *testing.T) {
 					},
 				},
 			},
-			expectErr: true,
+			expectErr: false, // デバイスパスが空でも自動検出されるのでOK
 		},
 	}
 

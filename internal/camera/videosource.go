@@ -113,4 +113,3 @@ func (b *BaseVideoSource) GetFrameChannel() <-chan []byte {
 func (b *BaseVideoSource) GetErrorChannel() <-chan error {
 	return b.errorChan
 }
-

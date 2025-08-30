@@ -68,7 +68,7 @@ func (m *DefaultCameraManager) Start(ctx context.Context) error {
 		Settings: VideoSettings{
 			Width:      1920,
 			Height:     1080,
-			FrameRate:  10,
+			FrameRate:  15,
 			Format:     "MJPEG",
 			Quality:    3,
 			Properties: make(map[string]interface{}),
@@ -272,9 +272,16 @@ func (m *DefaultCameraManager) SetScanInterval(interval time.Duration) {
 }
 
 // AddVideoSource はVideoSourceを追加する
-func (m *DefaultCameraManager) AddVideoSource(_ context.Context, sourceType VideoSourceType, config SourceConfig) (VideoSource, error) {
+func (m *DefaultCameraManager) AddVideoSource(ctx context.Context, sourceType VideoSourceType, config SourceConfig) (VideoSource, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	// USBカメラの場合はデバイスの存在確認
+	if sourceType == SourceTypeUSBCamera && config.Device != "" {
+		if !m.discovery.IsDeviceAvailable(ctx, config.Device) {
+			return nil, fmt.Errorf("デバイスが利用できません: %s", config.Device)
+		}
+	}
 
 	// VideoSourceを作成
 	source, err := m.sourceFactory.CreateSource(sourceType, config)
