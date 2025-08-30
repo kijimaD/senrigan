@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"senrigan/internal/camera"
 	"senrigan/internal/config"
 	"senrigan/internal/generated"
 
@@ -18,9 +19,10 @@ import (
 
 // GinServer はGinベースのHTTPサーバーを管理する構造体
 type GinServer struct {
-	config     *config.Config
-	httpServer *http.Server
-	router     *gin.Engine
+	config        *config.Config
+	httpServer    *http.Server
+	router        *gin.Engine
+	cameraManager camera.Manager
 }
 
 // NewGin は新しいGinServerインスタンスを作成する
@@ -48,9 +50,19 @@ func NewGin(cfg *config.Config) *GinServer {
 		c.Next()
 	})
 
+	// カメラマネージャーを初期化
+	discovery := camera.NewLinuxDiscovery()
+	defaultSettings := camera.Settings{
+		FPS:    cfg.Camera.DefaultFPS,
+		Width:  cfg.Camera.DefaultWidth,
+		Height: cfg.Camera.DefaultHeight,
+	}
+	cameraManager := camera.NewDefaultCameraManager(discovery, defaultSettings)
+
 	return &GinServer{
-		config: cfg,
-		router: router,
+		config:        cfg,
+		router:        router,
+		cameraManager: cameraManager,
 		httpServer: &http.Server{
 			Addr:         cfg.ServerAddress(),
 			Handler:      router,
@@ -62,6 +74,11 @@ func NewGin(cfg *config.Config) *GinServer {
 
 // Start はサーバーを起動する
 func (s *GinServer) Start(ctx context.Context) error {
+	// カメラマネージャーを開始
+	if err := s.cameraManager.Start(ctx); err != nil {
+		return fmt.Errorf("カメラマネージャーの起動に失敗: %w", err)
+	}
+
 	// ルートを設定
 	s.setupRoutes()
 
@@ -102,6 +119,11 @@ func (s *GinServer) Shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// カメラマネージャーを停止
+	if err := s.cameraManager.Stop(ctx); err != nil {
+		log.Printf("カメラマネージャーの停止に失敗: %v", err)
+	}
+
 	if err := s.httpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("サーバーのシャットダウンに失敗: %w", err)
 	}
@@ -114,7 +136,8 @@ func (s *GinServer) Shutdown() error {
 func (s *GinServer) setupRoutes() {
 	// ServerInterfaceを実装したハンドラーを作成
 	handler := &SenriganHandler{
-		config: s.config,
+		config:        s.config,
+		cameraManager: s.cameraManager,
 	}
 
 	// 生成されたルートを登録（OpenAPI仕様に基づく）
