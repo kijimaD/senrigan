@@ -53,12 +53,7 @@ func NewGin(cfg *config.Config) *GinServer {
 
 	// カメラマネージャーを初期化
 	discovery := camera.NewLinuxDiscovery()
-	defaultSettings := camera.Settings{
-		FPS:    cfg.Camera.DefaultFPS,
-		Width:  cfg.Camera.DefaultWidth,
-		Height: cfg.Camera.DefaultHeight,
-	}
-	cameraManager := camera.NewDefaultCameraManager(discovery, defaultSettings, camera.NewProductionServiceCreator())
+	cameraManager := camera.NewDefaultCameraManager(discovery)
 
 	return &GinServer{
 		config:        cfg,

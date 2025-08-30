@@ -2,7 +2,6 @@ package camera
 
 import (
 	"context"
-	"time"
 )
 
 // Status はカメラの動作状態を表す
@@ -15,24 +14,7 @@ const (
 	StatusError    Status = "error"    // カメラでエラーが発生
 )
 
-// Camera は動的に管理されるカメラの情報と制御機能を提供する
-type Camera struct {
-	ID       string    // カメラの一意識別子
-	Name     string    // カメラの表示名
-	Device   string    // デバイスパス（例: /dev/video0）
-	FPS      int       // フレームレート
-	Width    int       // 画像幅
-	Height   int       // 画像高さ
-	Status   Status    // 現在の状態
-	LastSeen time.Time // 最後に確認された時刻
-}
 
-// Settings はカメラの設定を表す
-type Settings struct {
-	FPS    int // フレームレート
-	Width  int // 画像幅
-	Height int // 画像高さ
-}
 
 // Manager はカメラの動的管理を担うインターフェース
 type Manager interface {
@@ -42,29 +24,21 @@ type Manager interface {
 	// Stop はカメラマネージャーを停止する
 	Stop(ctx context.Context) error
 
-	// GetCameras は現在管理されているカメラ一覧を取得する
-	GetCameras() []Camera
-
-	// GetCamera は指定されたIDのカメラを取得する
-	GetCamera(id string) (*Camera, bool)
-
-	// AddCamera はカメラを動的に追加する
-	AddCamera(ctx context.Context, device string, settings Settings) (*Camera, error)
-
-	// RemoveCamera はカメラを削除する
-	RemoveCamera(ctx context.Context, id string) error
-
-	// StartCamera はカメラを開始する
-	StartCamera(ctx context.Context, id string) error
-
-	// StopCamera はカメラを停止する
-	StopCamera(ctx context.Context, id string) error
-
 	// DiscoverCameras はシステム内のカメラデバイスを再検出する
 	DiscoverCameras(ctx context.Context) ([]string, error)
 
-	// GetCameraService は指定されたIDのカメラサービスを取得する
-	GetCameraService(id string) (Service, bool)
+	// VideoSource関連のメソッド
+	// AddVideoSource はVideoSourceを追加する
+	AddVideoSource(ctx context.Context, sourceType VideoSourceType, config SourceConfig) (VideoSource, error)
+
+	// GetVideoSource は指定されたIDのVideoSourceを取得する
+	GetVideoSource(id string) (VideoSource, bool)
+
+	// GetVideoSources は現在管理されているVideoSource一覧を取得する
+	GetVideoSources() []VideoSource
+
+	// RemoveVideoSource はVideoSourceを削除する
+	RemoveVideoSource(ctx context.Context, id string) error
 }
 
 // Discovery はカメラデバイスの検出機能を提供する
@@ -94,32 +68,3 @@ type Resolution struct {
 	Height int // 高さ
 }
 
-// Service は個別カメラの制御を担うインターフェース
-type Service interface {
-	// Start はカメラサービスを開始する
-	Start(ctx context.Context) error
-
-	// Stop はカメラサービスを停止する
-	Stop(ctx context.Context) error
-
-	// GetStatus は現在の状態を取得する
-	GetStatus() Status
-
-	// GetSettings は現在の設定を取得する
-	GetSettings() Settings
-
-	// UpdateSettings は設定を更新する
-	UpdateSettings(ctx context.Context, settings Settings) error
-
-	// GetLatestFrame は最新のフレームを取得する
-	GetLatestFrame() ([]byte, error)
-
-	// GetFrameChannel はフレームチャンネルを取得する（ストリーミング用）
-	GetFrameChannel() <-chan []byte
-}
-
-// ServiceCreator はServiceを作成するためのインターフェース
-type ServiceCreator interface {
-	// CreateService は指定されたカメラに対してServiceを作成する
-	CreateService(camera *Camera) Service
-}

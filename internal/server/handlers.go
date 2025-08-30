@@ -34,7 +34,7 @@ func (h *SenriganHandler) GetStatus(c *gin.Context) {
 			Host: h.config.Server.Host,
 			Port: h.config.Server.Port,
 		},
-		Cameras: len(h.cameraManager.GetCameras()),
+		Cameras: len(h.cameraManager.GetVideoSources()),
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -42,28 +42,31 @@ func (h *SenriganHandler) GetStatus(c *gin.Context) {
 
 // GetCameras はカメラ一覧取得エンドポイントの実装
 func (h *SenriganHandler) GetCameras(c *gin.Context) {
-	// カメラマネージャーから現在のカメラ一覧を取得
-	managedCameras := h.cameraManager.GetCameras()
-	cameras := make([]generated.CameraInfo, 0, len(managedCameras))
+	// VideoSourceマネージャーから現在のVideoSource一覧を取得
+	videoSources := h.cameraManager.GetVideoSources()
+	cameras := make([]generated.CameraInfo, 0, len(videoSources))
 
-	for _, cam := range managedCameras {
+	for _, source := range videoSources {
+		info := source.GetInfo()
+		settings := source.GetCurrentSettings()
+
 		// カメラ設定を生成されたスキーマに変換
-		settings := generated.CameraSettings{
-			Fps:    cam.FPS,
-			Width:  cam.Width,
-			Height: cam.Height,
+		cameraSettings := generated.CameraSettings{
+			Fps:    settings.FrameRate,
+			Width:  settings.Width,
+			Height: settings.Height,
 		}
 
 		// カメラ情報を作成
 		cameraInfo := generated.CameraInfo{
-			Id:       cam.ID,
-			Name:     cam.Name,
-			Device:   cam.Device,
-			Settings: settings,
+			Id:       info.ID,
+			Name:     info.Name,
+			Device:   info.Device,
+			Settings: cameraSettings,
 		}
 
 		// カメラの状態を変換
-		status := convertCameraStatus(cam.Status)
+		status := convertCameraStatus(source.GetStatus())
 		cameraInfo.Status = &status
 
 		cameras = append(cameras, cameraInfo)
@@ -83,8 +86,8 @@ func (h *SenriganHandler) GetCameras(c *gin.Context) {
 
 // GetCameraStream はMJPEGストリーミングエンドポイントの実装
 func (h *SenriganHandler) GetCameraStream(c *gin.Context, cameraID string) {
-	// カメラIDの存在確認
-	cam, found := h.cameraManager.GetCamera(cameraID)
+	// VideoSourceの存在確認
+	source, found := h.cameraManager.GetVideoSource(cameraID)
 	if !found {
 		errorResponse := generated.ErrorResponse{
 			Error:   "camera_not_found",
@@ -94,8 +97,8 @@ func (h *SenriganHandler) GetCameraStream(c *gin.Context, cameraID string) {
 		return
 	}
 
-	// カメラがアクティブか確認
-	if cam.Status != camera.StatusActive {
+	// VideoSourceがアクティブか確認
+	if source.GetStatus() != camera.StatusActive {
 		errorResponse := generated.ErrorResponse{
 			Error:   "camera_not_active",
 			Message: "カメラがアクティブではありません",
@@ -110,8 +113,8 @@ func (h *SenriganHandler) GetCameraStream(c *gin.Context, cameraID string) {
 
 // GetCameraWebSocket はWebSocketストリーミングエンドポイントの実装（未実装）
 func (h *SenriganHandler) GetCameraWebSocket(c *gin.Context, cameraID string) {
-	// カメラIDの存在確認
-	_, found := h.cameraManager.GetCamera(cameraID)
+	// VideoSourceの存在確認
+	_, found := h.cameraManager.GetVideoSource(cameraID)
 	if !found {
 		errorResponse := generated.ErrorResponse{
 			Error:   "camera_not_found",
@@ -153,8 +156,8 @@ func stringPtr(s string) *string {
 
 // streamMJPEG はMJPEGストリームを配信する
 func (h *SenriganHandler) streamMJPEG(c *gin.Context, cameraID string) {
-	// カメラサービスを取得
-	service, exists := h.cameraManager.GetCameraService(cameraID)
+	// VideoSourceを取得
+	source, exists := h.cameraManager.GetVideoSource(cameraID)
 	if !exists {
 		c.AbortWithStatus(http.StatusNotFound)
 		return
@@ -175,7 +178,7 @@ func (h *SenriganHandler) streamMJPEG(c *gin.Context, cameraID string) {
 	}
 
 	// フレームチャンネルを取得
-	frameChan := service.GetFrameChannel()
+	frameChan := source.GetFrameChannel()
 
 	// クライアント切断を検知するためのコンテキスト
 	clientGone := c.Request.Context().Done()

@@ -6,19 +6,15 @@ import (
 	"log"
 	"sync"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // DefaultCameraManager はCamera Managerのデフォルト実装
 type DefaultCameraManager struct {
 	discovery Discovery
-	cameras   map[string]*Camera
-	services  map[string]Service
 	mu        sync.RWMutex
 
 	// デフォルト設定
-	defaultSettings Settings
+	defaultSettings VideoSettings
 
 	// 制御用
 	stopCh chan struct{}
@@ -28,21 +24,31 @@ type DefaultCameraManager struct {
 	autoDiscovery bool
 	scanInterval  time.Duration
 
-	// サービス作成用
-	serviceCreator ServiceCreator
+	// VideoSource管理用
+	videoSources  map[string]VideoSource
+	sourceFactory VideoSourceFactory
 }
 
 // NewDefaultCameraManager は新しいDefaultCameraManagerを作成する
-func NewDefaultCameraManager(discovery Discovery, defaultSettings Settings, serviceCreator ServiceCreator) Manager {
+func NewDefaultCameraManager(discovery Discovery) Manager {
+	// デフォルトのVideoSettings
+	defaultSettings := VideoSettings{
+		Width:      1280,
+		Height:     720,
+		FrameRate:  15,
+		Format:     "MJPEG",
+		Quality:    3,
+		Properties: make(map[string]interface{}),
+	}
+
 	return &DefaultCameraManager{
 		discovery:       discovery,
-		cameras:         make(map[string]*Camera),
-		services:        make(map[string]Service),
 		defaultSettings: defaultSettings,
 		stopCh:          make(chan struct{}),
 		autoDiscovery:   true,
 		scanInterval:    30 * time.Second,
-		serviceCreator:  serviceCreator,
+		videoSources:    make(map[string]VideoSource),
+		sourceFactory:   NewVideoSourceFactory(),
 	}
 }
 
@@ -74,157 +80,23 @@ func (m *DefaultCameraManager) Stop(ctx context.Context) error {
 	close(m.stopCh)
 	m.wg.Wait()
 
-	// 全カメラサービスを停止
+	// 全VideoSourceを停止
 	var stopErrors []error
-	for id, service := range m.services {
-		if err := service.Stop(ctx); err != nil {
-			stopErrors = append(stopErrors, fmt.Errorf("カメラ %s の停止に失敗: %w", id, err))
+	for id, videoSource := range m.videoSources {
+		if err := videoSource.Stop(ctx); err != nil {
+			stopErrors = append(stopErrors, fmt.Errorf("VideoSource %s の停止に失敗: %w", id, err))
 		}
 	}
 
 	if len(stopErrors) > 0 {
-		return fmt.Errorf("一部のカメラ停止に失敗: %v", stopErrors)
+		return fmt.Errorf("一部のVideoSource停止に失敗: %v", stopErrors)
 	}
 
 	// リソースをクリア
-	m.cameras = make(map[string]*Camera)
-	m.services = make(map[string]Service)
+	m.videoSources = make(map[string]VideoSource)
 	m.stopCh = make(chan struct{})
 
 	return nil
-}
-
-// GetCameras は現在管理されているカメラ一覧を取得する
-func (m *DefaultCameraManager) GetCameras() []Camera {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	cameras := make([]Camera, 0, len(m.cameras))
-	for _, camera := range m.cameras {
-		cameras = append(cameras, *camera)
-	}
-
-	return cameras
-}
-
-// GetCamera は指定されたIDのカメラを取得する
-func (m *DefaultCameraManager) GetCamera(id string) (*Camera, bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	camera, exists := m.cameras[id]
-	if !exists {
-		return nil, false
-	}
-
-	// コピーを返す
-	result := *camera
-	return &result, true
-}
-
-// GetCameraService は指定されたIDのカメラサービスを取得する
-func (m *DefaultCameraManager) GetCameraService(id string) (Service, bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	service, exists := m.services[id]
-	return service, exists
-}
-
-// AddCamera はカメラを動的に追加する
-func (m *DefaultCameraManager) AddCamera(ctx context.Context, device string, settings Settings) (*Camera, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	// デバイスの利用可能性をチェック
-	if !m.discovery.IsDeviceAvailable(ctx, device) {
-		return nil, fmt.Errorf("デバイスが利用できません: %s", device)
-	}
-
-	// 既に同じデバイスが登録されているかチェック
-	for _, camera := range m.cameras {
-		if camera.Device == device {
-			return nil, fmt.Errorf("デバイス %s は既に追加されています", device)
-		}
-	}
-
-	// デバイス情報を取得
-	deviceInfo, err := m.discovery.GetDeviceInfo(ctx, device)
-	if err != nil {
-		return nil, fmt.Errorf("デバイス情報の取得に失敗: %w", err)
-	}
-
-	// 新しいカメラを作成
-	camera := &Camera{
-		ID:       uuid.New().String(),
-		Name:     deviceInfo.Name,
-		Device:   device,
-		FPS:      settings.FPS,
-		Width:    settings.Width,
-		Height:   settings.Height,
-		Status:   StatusInactive,
-		LastSeen: time.Now(),
-	}
-
-	// カメラサービスを作成
-	service := m.serviceCreator.CreateService(camera)
-
-	// 管理対象に追加
-	m.cameras[camera.ID] = camera
-	m.services[camera.ID] = service
-
-	return camera, nil
-}
-
-// RemoveCamera はカメラを削除する
-func (m *DefaultCameraManager) RemoveCamera(ctx context.Context, id string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	_, exists := m.cameras[id]
-	if !exists {
-		return fmt.Errorf("カメラが見つかりません: %s", id)
-	}
-
-	// カメラが動作中の場合は停止
-	service := m.services[id]
-	if service.GetStatus() == StatusActive {
-		if err := service.Stop(ctx); err != nil {
-			return fmt.Errorf("カメラの停止に失敗: %w", err)
-		}
-	}
-
-	// 管理対象から削除
-	delete(m.cameras, id)
-	delete(m.services, id)
-
-	return nil
-}
-
-// StartCamera はカメラを開始する
-func (m *DefaultCameraManager) StartCamera(ctx context.Context, id string) error {
-	m.mu.RLock()
-	service, exists := m.services[id]
-	m.mu.RUnlock()
-
-	if !exists {
-		return fmt.Errorf("カメラが見つかりません: %s", id)
-	}
-
-	return service.Start(ctx)
-}
-
-// StopCamera はカメラを停止する
-func (m *DefaultCameraManager) StopCamera(ctx context.Context, id string) error {
-	m.mu.RLock()
-	service, exists := m.services[id]
-	m.mu.RUnlock()
-
-	if !exists {
-		return fmt.Errorf("カメラが見つかりません: %s", id)
-	}
-
-	return service.Stop(ctx)
 }
 
 // DiscoverCameras はシステム内のカメラデバイスを再検出する
@@ -246,8 +118,8 @@ func (m *DefaultCameraManager) performDiscovery(ctx context.Context) ([]string, 
 	for _, device := range devices {
 		// 既に登録済みかチェック
 		isRegistered := false
-		for _, camera := range m.cameras {
-			if camera.Device == device {
+		for _, source := range m.videoSources {
+			if source.GetInfo().Device == device {
 				isRegistered = true
 				break
 			}
@@ -255,7 +127,7 @@ func (m *DefaultCameraManager) performDiscovery(ctx context.Context) ([]string, 
 
 		if !isRegistered {
 			// デフォルト設定で自動追加
-			_, err := m.addCameraInternal(ctx, device, m.defaultSettings)
+			_, err := m.addVideoSourceInternal(ctx, device, m.defaultSettings)
 			if err != nil {
 				// ログ出力は実際の実装で行う
 				continue
@@ -265,10 +137,10 @@ func (m *DefaultCameraManager) performDiscovery(ctx context.Context) ([]string, 
 
 	// 存在しなくなったデバイスを検出
 	var toRemove []string
-	for id, camera := range m.cameras {
+	for id, source := range m.videoSources {
 		deviceExists := false
 		for _, device := range devices {
-			if camera.Device == device {
+			if source.GetInfo().Device == device {
 				deviceExists = true
 				break
 			}
@@ -281,66 +153,52 @@ func (m *DefaultCameraManager) performDiscovery(ctx context.Context) ([]string, 
 
 	// 存在しないデバイスを削除
 	for _, id := range toRemove {
-		m.removeCameraInternal(ctx, id)
+		m.removeVideoSourceInternal(ctx, id)
 	}
 
 	return devices, nil
 }
 
-// addCameraInternal は内部でカメラを追加する（ロック済み前提）
-func (m *DefaultCameraManager) addCameraInternal(ctx context.Context, device string, settings Settings) (*Camera, error) {
-	// デバイス情報を取得
-	deviceInfo, err := m.discovery.GetDeviceInfo(ctx, device)
+// addVideoSourceInternal は内部でVideoSourceを追加する（ロック済み前提）
+func (m *DefaultCameraManager) addVideoSourceInternal(ctx context.Context, device string, settings VideoSettings) (VideoSource, error) {
+	config := SourceConfig{
+		Device:   device,
+		Settings: settings,
+	}
+
+	videoSource, err := m.sourceFactory.CreateSource(SourceTypeUSBCamera, config)
 	if err != nil {
 		return nil, err
 	}
 
-	// 新しいカメラを作成
-	cam := &Camera{
-		ID:       uuid.New().String(),
-		Name:     deviceInfo.Name,
-		Device:   device,
-		FPS:      settings.FPS,
-		Width:    settings.Width,
-		Height:   settings.Height,
-		Status:   StatusInactive,
-		LastSeen: time.Now(),
-	}
+	// VideoSourceを管理対象に追加
+	sourceID := videoSource.GetInfo().ID
+	m.videoSources[sourceID] = videoSource
 
-	// カメラサービスを作成
-	service := m.serviceCreator.CreateService(cam)
-
-	// 管理対象に追加
-	m.cameras[cam.ID] = cam
-	m.services[cam.ID] = service
-
-	// カメラを自動的に開始
-	if err := service.Start(ctx); err != nil {
-		// 開始に失敗してもカメラは登録しておく
-		log.Printf("カメラ %s の自動開始に失敗: %v", cam.ID, err)
+	// VideoSourceを自動的に開始
+	if err := videoSource.Start(ctx); err != nil {
+		log.Printf("VideoSource %s の自動開始に失敗: %v", sourceID, err)
 	} else {
-		cam.Status = StatusActive
-		log.Printf("カメラ %s を自動開始しました", cam.ID)
+		log.Printf("VideoSource %s を自動開始しました", sourceID)
 	}
 
-	return cam, nil
+	return videoSource, nil
 }
 
-// removeCameraInternal は内部でカメラを削除する（ロック済み前提）
-func (m *DefaultCameraManager) removeCameraInternal(ctx context.Context, id string) {
-	service, exists := m.services[id]
+// removeVideoSourceInternal は内部でVideoSourceを削除する（ロック済み前提）
+func (m *DefaultCameraManager) removeVideoSourceInternal(ctx context.Context, id string) {
+	source, exists := m.videoSources[id]
 	if !exists {
 		return
 	}
 
-	// カメラが動作中の場合は停止
-	if service.GetStatus() == StatusActive {
-		_ = service.Stop(ctx) // エラーは無視
+	// VideoSourceが動作中の場合は停止
+	if source.GetStatus() == StatusActive {
+		_ = source.Stop(ctx) // エラーは無視
 	}
 
 	// 管理対象から削除
-	delete(m.cameras, id)
-	delete(m.services, id)
+	delete(m.videoSources, id)
 }
 
 // backgroundScan は定期的なデバイススキャンを実行する
@@ -377,4 +235,67 @@ func (m *DefaultCameraManager) SetScanInterval(interval time.Duration) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.scanInterval = interval
+}
+
+// AddVideoSource はVideoSourceを追加する
+func (m *DefaultCameraManager) AddVideoSource(_ context.Context, sourceType VideoSourceType, config SourceConfig) (VideoSource, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// VideoSourceを作成
+	source, err := m.sourceFactory.CreateSource(sourceType, config)
+	if err != nil {
+		return nil, fmt.Errorf("VideoSourceの作成に失敗: %w", err)
+	}
+
+	// VideoSourceを管理対象に追加
+	sourceID := source.GetInfo().ID
+	m.videoSources[sourceID] = source
+
+	return source, nil
+}
+
+// GetVideoSource は指定されたIDのVideoSourceを取得する
+func (m *DefaultCameraManager) GetVideoSource(id string) (VideoSource, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	source, exists := m.videoSources[id]
+	return source, exists
+}
+
+// GetVideoSources は現在管理されているVideoSource一覧を取得する
+func (m *DefaultCameraManager) GetVideoSources() []VideoSource {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	sources := make([]VideoSource, 0, len(m.videoSources))
+	for _, source := range m.videoSources {
+		sources = append(sources, source)
+	}
+
+	return sources
+}
+
+// RemoveVideoSource はVideoSourceを削除する
+func (m *DefaultCameraManager) RemoveVideoSource(ctx context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	source, exists := m.videoSources[id]
+	if !exists {
+		return fmt.Errorf("VideoSourceが見つかりません: %s", id)
+	}
+
+	// VideoSourceが動作中の場合は停止
+	if source.GetStatus() == StatusActive {
+		if err := source.Stop(ctx); err != nil {
+			return fmt.Errorf("VideoSourceの停止に失敗: %w", err)
+		}
+	}
+
+	// 管理対象から削除
+	delete(m.videoSources, id)
+
+	return nil
 }
