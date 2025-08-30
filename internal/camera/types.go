@@ -107,4 +107,16 @@ type Service interface {
 
 	// UpdateSettings は設定を更新する
 	UpdateSettings(ctx context.Context, settings Settings) error
+
+	// GetLatestFrame は最新のフレームを取得する
+	GetLatestFrame() ([]byte, error)
+
+	// GetFrameChannel はフレームチャンネルを取得する（ストリーミング用）
+	GetFrameChannel() <-chan []byte
+}
+
+// ServiceCreator はServiceを作成するためのインターフェース
+type ServiceCreator interface {
+	// CreateService は指定されたカメラに対してServiceを作成する
+	CreateService(camera *Camera) Service
 }

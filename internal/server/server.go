@@ -57,7 +57,7 @@ func NewGin(cfg *config.Config) *GinServer {
 		Width:  cfg.Camera.DefaultWidth,
 		Height: cfg.Camera.DefaultHeight,
 	}
-	cameraManager := camera.NewDefaultCameraManager(discovery, defaultSettings)
+	cameraManager := camera.NewDefaultCameraManager(discovery, defaultSettings, camera.NewProductionServiceCreator())
 
 	return &GinServer{
 		config:        cfg,

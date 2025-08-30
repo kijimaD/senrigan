@@ -20,10 +20,19 @@ type defaultCameraService struct {
 
 	// 監視ゴルーチン用
 	wg sync.WaitGroup
+
+	// V4L2キャプチャ
+	capturer *V4L2Capturer
+
+	// ストリーミング用チャンネル
+	frameChan chan []byte
+	errorChan chan error
 }
 
 // NewCameraService は新しいdefaultCameraServiceを作成する
 func NewCameraService(camera *Camera) Service {
+	capturer := NewV4L2Capturer(camera.Device, camera.Width, camera.Height, camera.FPS)
+
 	return &defaultCameraService{
 		camera: camera,
 		status: StatusInactive,
@@ -32,8 +41,11 @@ func NewCameraService(camera *Camera) Service {
 			Width:  camera.Width,
 			Height: camera.Height,
 		},
-		stopCh:   make(chan struct{}),
-		statusCh: make(chan Status, 1),
+		stopCh:    make(chan struct{}),
+		statusCh:  make(chan Status, 1),
+		capturer:  capturer,
+		frameChan: make(chan []byte, 10), // 最大10フレームをバッファ
+		errorChan: make(chan error, 5),   // エラーチャンネル
 	}
 }
 
@@ -79,9 +91,7 @@ func (s *defaultCameraService) Stop(ctx context.Context) error {
 	s.wg.Wait()
 
 	// リソースのクリーンアップ
-	if err := s.cleanupCamera(ctx); err != nil {
-		return fmt.Errorf("カメラ %s のクリーンアップに失敗: %w", s.camera.ID, err)
-	}
+	s.cleanupCamera(ctx)
 
 	s.status = StatusInactive
 	s.camera.Status = StatusInactive
@@ -130,25 +140,43 @@ func (s *defaultCameraService) UpdateSettings(ctx context.Context, settings Sett
 	return nil
 }
 
-// initializeCamera はカメラデバイスを初期化する（モック実装）
+// initializeCamera はカメラデバイスを初期化する
 func (s *defaultCameraService) initializeCamera(ctx context.Context) error {
-	// 実際の実装では、V4L2 APIを使ってカメラデバイスを開く
-	// ここではモック実装として成功を返す
-
-	// デバイスファイルの存在確認（簡易チェック）
-	discovery := NewLinuxDiscovery()
-	if !discovery.IsDeviceAvailable(ctx, s.camera.Device) {
-		return fmt.Errorf("デバイスが利用できません: %s", s.camera.Device)
+	// V4L2デバイスの利用可能性をチェック
+	if !s.capturer.IsDeviceAvailable(ctx) {
+		return fmt.Errorf("V4L2デバイスが利用できません: %s", s.camera.Device)
 	}
+
+	// テストキャプチャを実行してデバイスが正常に動作するかチェック
+	if err := s.capturer.TestCapture(ctx); err != nil {
+		return fmt.Errorf("デバイスのテストキャプチャに失敗: %w", err)
+	}
+
+	// ストリーミングを開始
+	go s.capturer.StartStream(ctx, s.frameChan, s.errorChan)
+
+	// エラー監視ゴルーチンを開始
+	s.wg.Add(1)
+	go s.monitorErrors(ctx)
 
 	return nil
 }
 
 // cleanupCamera はカメラデバイスをクリーンアップする
-func (s *defaultCameraService) cleanupCamera(_ context.Context) error {
-	// 実際の実装では、開いたデバイスファイルをクローズする
-	// ここではモック実装として成功を返す
-	return nil
+func (s *defaultCameraService) cleanupCamera(_ context.Context) {
+	// フレームチャンネルをクリア
+	select {
+	case <-s.frameChan:
+		// チャンネルに残っているデータを消費
+	default:
+	}
+
+	// エラーチャンネルをクリア
+	select {
+	case <-s.errorChan:
+		// チャンネルに残っているエラーを消費
+	default:
+	}
 }
 
 // monitorCamera はカメラの状態を監視する
@@ -175,10 +203,8 @@ func (s *defaultCameraService) checkCameraHealth(ctx context.Context) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// 実際の実装では、カメラからのデータ取得を試行
-	// ここではモック実装として、デバイスの存在確認のみ行う
-	discovery := NewLinuxDiscovery()
-	if !discovery.IsDeviceAvailable(ctx, s.camera.Device) {
+	// V4L2デバイスの利用可能性をチェック
+	if !s.capturer.IsDeviceAvailable(ctx) {
 		if s.status == StatusActive {
 			s.status = StatusError
 			s.camera.Status = StatusError
@@ -213,12 +239,64 @@ func (s *defaultCameraService) validateSettings(settings Settings) error {
 	return nil
 }
 
-// applySettings は設定をカメラデバイスに適用する（モック実装）
-func (s *defaultCameraService) applySettings(_ context.Context, settings Settings) error {
-	// 実際の実装では、V4L2 APIを使って解像度やフレームレートを設定
-	// ここではモック実装として成功を返す
-	_ = settings // 現在は未使用だが将来使用する予定
+// applySettings は設定をカメラデバイスに適用する
+func (s *defaultCameraService) applySettings(ctx context.Context, settings Settings) error {
+	// 新しい設定でキャプチャを再作成
+	s.capturer = NewV4L2Capturer(s.camera.Device, settings.Width, settings.Height, settings.FPS)
+
+	// アクティブな場合は再初期化
+	if s.status == StatusActive {
+		return s.initializeCamera(ctx)
+	}
+
 	return nil
+}
+
+// monitorErrors はエラーチャンネルを監視する
+func (s *defaultCameraService) monitorErrors(ctx context.Context) {
+	defer s.wg.Done()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-s.stopCh:
+			return
+		case err := <-s.errorChan:
+			if err != nil {
+				// エラーログの出力（実装は後で追加）
+				s.mu.Lock()
+				if s.status == StatusActive {
+					s.status = StatusError
+					s.camera.Status = StatusError
+				}
+				s.mu.Unlock()
+			}
+		}
+	}
+}
+
+// GetLatestFrame は最新のフレームを取得する
+func (s *defaultCameraService) GetLatestFrame() ([]byte, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.status != StatusActive {
+		return nil, fmt.Errorf("カメラが非アクティブです")
+	}
+
+	// 非ブロッキングでフレームを取得
+	select {
+	case frame := <-s.frameChan:
+		return frame, nil
+	default:
+		return nil, fmt.Errorf("利用可能なフレームがありません")
+	}
+}
+
+// GetFrameChannel はフレームチャンネルを取得する（ストリーミング用）
+func (s *defaultCameraService) GetFrameChannel() <-chan []byte {
+	return s.frameChan
 }
 
 // MockCameraService はテスト用のモックサービス実装
@@ -319,4 +397,45 @@ func (m *MockCameraService) SetShouldFailStop(shouldFail bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.shouldFailStop = shouldFail
+}
+
+// GetLatestFrame は最新のフレームを取得する（モック実装）
+func (m *MockCameraService) GetLatestFrame() ([]byte, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.status != StatusActive {
+		return nil, fmt.Errorf("カメラが非アクティブです")
+	}
+
+	// モックフレームデータを返す（1x1の白いJPEG）
+	return []byte{
+		0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46,
+		0x00, 0x01, 0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00,
+		0xFF, 0xC0, 0x00, 0x11, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01,
+		0x01, 0x11, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01, 0xFF,
+		0xC4, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x08, 0xFF, 0xC4, 0x00, 0x14, 0x10, 0x01, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0xFF, 0xDA, 0x00, 0x0C, 0x03, 0x01, 0x00,
+		0x02, 0x11, 0x03, 0x11, 0x00, 0x3F, 0x00, 0x80, 0xFF, 0xD9,
+	}, nil
+}
+
+// GetFrameChannel はフレームチャンネルを取得する（モック実装）
+func (m *MockCameraService) GetFrameChannel() <-chan []byte {
+	// モック用のチャンネルを作成
+	frameChan := make(chan []byte, 1)
+
+	// モックフレームを1つ送信
+	go func() {
+		defer close(frameChan)
+		frame, _ := m.GetLatestFrame()
+		if frame != nil {
+			frameChan <- frame
+		}
+	}()
+
+	return frameChan
 }

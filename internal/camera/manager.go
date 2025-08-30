@@ -26,10 +26,13 @@ type DefaultCameraManager struct {
 	// 自動検出設定
 	autoDiscovery bool
 	scanInterval  time.Duration
+
+	// サービス作成用
+	serviceCreator ServiceCreator
 }
 
 // NewDefaultCameraManager は新しいDefaultCameraManagerを作成する
-func NewDefaultCameraManager(discovery Discovery, defaultSettings Settings) Manager {
+func NewDefaultCameraManager(discovery Discovery, defaultSettings Settings, serviceCreator ServiceCreator) Manager {
 	return &DefaultCameraManager{
 		discovery:       discovery,
 		cameras:         make(map[string]*Camera),
@@ -37,7 +40,8 @@ func NewDefaultCameraManager(discovery Discovery, defaultSettings Settings) Mana
 		defaultSettings: defaultSettings,
 		stopCh:          make(chan struct{}),
 		autoDiscovery:   true,
-		scanInterval:    30 * time.Second, // 30秒間隔で自動スキャン
+		scanInterval:    30 * time.Second,
+		serviceCreator:  serviceCreator,
 	}
 }
 
@@ -153,7 +157,7 @@ func (m *DefaultCameraManager) AddCamera(ctx context.Context, device string, set
 	}
 
 	// カメラサービスを作成
-	service := NewCameraService(camera)
+	service := m.serviceCreator.CreateService(camera)
 
 	// 管理対象に追加
 	m.cameras[camera.ID] = camera
@@ -294,7 +298,7 @@ func (m *DefaultCameraManager) addCameraInternal(ctx context.Context, device str
 	}
 
 	// カメラサービスを作成
-	service := NewCameraService(cam)
+	service := m.serviceCreator.CreateService(cam)
 
 	// 管理対象に追加
 	m.cameras[cam.ID] = cam

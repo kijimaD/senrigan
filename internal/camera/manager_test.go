@@ -11,7 +11,7 @@ func TestDefaultCameraManager_Basic(t *testing.T) {
 	mockDiscovery := NewMockDiscovery([]string{"/dev/video0", "/dev/video1"})
 	defaultSettings := Settings{FPS: 30, Width: 1920, Height: 1080}
 
-	manager := NewDefaultCameraManager(mockDiscovery, defaultSettings)
+	manager := NewDefaultCameraManager(mockDiscovery, defaultSettings, NewMockServiceCreator())
 
 	// Start
 	if err := manager.Start(ctx); err != nil {
@@ -46,7 +46,7 @@ func TestDefaultCameraManager_AddRemoveCamera(t *testing.T) {
 	mockDiscovery := NewMockDiscovery([]string{})
 	defaultSettings := Settings{FPS: 15, Width: 640, Height: 480}
 
-	manager := NewDefaultCameraManager(mockDiscovery, defaultSettings)
+	manager := NewDefaultCameraManager(mockDiscovery, defaultSettings, NewMockServiceCreator())
 
 	if err := manager.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
@@ -112,7 +112,7 @@ func TestDefaultCameraManager_StartStopCamera(t *testing.T) {
 	mockDiscovery := NewMockDiscovery([]string{"/dev/video0"})
 	defaultSettings := Settings{FPS: 15, Width: 640, Height: 480}
 
-	manager := NewDefaultCameraManager(mockDiscovery, defaultSettings)
+	manager := NewDefaultCameraManager(mockDiscovery, defaultSettings, NewMockServiceCreator())
 
 	if err := manager.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
@@ -162,7 +162,7 @@ func TestDefaultCameraManager_DiscoverCameras(t *testing.T) {
 	mockDiscovery := NewMockDiscovery([]string{"/dev/video0"})
 	defaultSettings := Settings{FPS: 15, Width: 640, Height: 480}
 
-	manager := NewDefaultCameraManager(mockDiscovery, defaultSettings)
+	manager := NewDefaultCameraManager(mockDiscovery, defaultSettings, NewMockServiceCreator())
 
 	if err := manager.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
@@ -219,7 +219,7 @@ func TestDefaultCameraManager_ErrorCases(t *testing.T) {
 	mockDiscovery := NewMockDiscovery([]string{})
 	defaultSettings := Settings{FPS: 15, Width: 640, Height: 480}
 
-	manager := NewDefaultCameraManager(mockDiscovery, defaultSettings)
+	manager := NewDefaultCameraManager(mockDiscovery, defaultSettings, NewMockServiceCreator())
 
 	if err := manager.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
@@ -266,7 +266,7 @@ func TestDefaultCameraManager_ConcurrentAccess(t *testing.T) {
 	mockDiscovery := NewMockDiscovery([]string{"/dev/video0", "/dev/video1"})
 	defaultSettings := Settings{FPS: 15, Width: 640, Height: 480}
 
-	manager := NewDefaultCameraManager(mockDiscovery, defaultSettings)
+	manager := NewDefaultCameraManager(mockDiscovery, defaultSettings, NewMockServiceCreator())
 
 	if err := manager.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
