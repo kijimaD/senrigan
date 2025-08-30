@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState } from "react";
+import { buildStreamUrl } from "../config/api";
 
 interface CameraStreamProps {
   cameraId: string;
@@ -21,7 +22,9 @@ export function CameraStream({
     if (!imgRef.current) return;
 
     const img = imgRef.current;
-    const streamUrl = `http://localhost:8080/api/cameras/${cameraId}/stream`;
+
+    // 共通設定を使用してストリームURLを構築
+    const streamUrl = buildStreamUrl(cameraId);
 
     // MJPEGストリームを直接img要素のsrcに設定
     img.src = streamUrl;

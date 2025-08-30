@@ -14,4 +14,10 @@ export default defineConfig({
       input: "./index.html",
     },
   },
+  define: {
+    // バックエンドベースURL（開発時・本番時で切り替え可能）
+    __BACKEND_BASE_URL__: JSON.stringify(
+      process.env.VITE_BACKEND_BASE_URL || "http://localhost:8080",
+    ),
+  },
 });

@@ -7,6 +7,7 @@ import type {
 } from "../generated/api";
 import { AxiosError } from "axios";
 import { CameraStream } from "../components/CameraStream";
+import { API_CONFIG } from "../config/api";
 
 export function MainPage() {
   const [status, setStatus] = useState<StatusResponse | null>(null);
@@ -17,12 +18,9 @@ export function MainPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // APIクライアントの設定（直接バックエンドに接続）
-        const apiConfig = {
-          basePath: 'http://localhost:8080'
-        };
-        const statusApi = new StatusApi(apiConfig);
-        const cameraApi = new CameraApi(apiConfig);
+        // 共通のAPI設定を使用
+        const statusApi = new StatusApi(API_CONFIG);
+        const cameraApi = new CameraApi(API_CONFIG);
 
         // システム状態を取得
         const statusResponse = await statusApi.getStatus();
