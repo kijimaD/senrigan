@@ -6,6 +6,7 @@ import type {
   ErrorResponse,
 } from "../generated/api";
 import { AxiosError } from "axios";
+import { CameraStream } from "../components/CameraStream";
 
 export function MainPage() {
   const [status, setStatus] = useState<StatusResponse | null>(null);
@@ -16,8 +17,12 @@ export function MainPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const statusApi = new StatusApi();
-        const cameraApi = new CameraApi();
+        // APIクライアントの設定（直接バックエンドに接続）
+        const apiConfig = {
+          basePath: 'http://localhost:8080'
+        };
+        const statusApi = new StatusApi(apiConfig);
+        const cameraApi = new CameraApi(apiConfig);
 
         // システム状態を取得
         const statusResponse = await statusApi.getStatus();
@@ -149,23 +154,32 @@ export function MainPage() {
                   </span>
                 </p>
 
-                <div
-                  style={{
-                    width: "100%",
-                    height: "200px",
-                    backgroundColor: "#f0f0f0",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginTop: "15px",
-                    borderRadius: "4px",
-                    border: "1px solid #ddd",
-                  }}
-                >
-                  <p style={{ color: "#666", margin: 0 }}>
-                    ストリーミング機能は実装中です
-                  </p>
-                </div>
+                {camera.status === "active" ? (
+                  <div style={{ marginTop: "15px" }}>
+                    <CameraStream
+                      cameraId={camera.id}
+                      cameraName={camera.name}
+                    />
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "200px",
+                      backgroundColor: "#f0f0f0",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginTop: "15px",
+                      borderRadius: "4px",
+                      border: "1px solid #ddd",
+                    }}
+                  >
+                    <p style={{ color: "#666", margin: 0 }}>
+                      カメラが非アクティブです
+                    </p>
+                  </div>
+                )}
               </div>
             ))}
           </div>

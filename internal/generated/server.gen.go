@@ -16,9 +16,12 @@ type ServerInterface interface {
 	// カメラ一覧取得
 	// (GET /api/cameras)
 	GetCameras(c *gin.Context)
-	// カメラストリーム接続
+	// カメラMJPEGストリーム
 	// (GET /api/cameras/{cameraId}/stream)
 	GetCameraStream(c *gin.Context, cameraId string)
+	// カメラWebSocketストリーム
+	// (GET /api/cameras/{cameraId}/ws)
+	GetCameraWebSocket(c *gin.Context, cameraId string)
 	// システム状態取得
 	// (GET /api/status)
 	GetStatus(c *gin.Context)
@@ -71,6 +74,30 @@ func (siw *ServerInterfaceWrapper) GetCameraStream(c *gin.Context) {
 	}
 
 	siw.Handler.GetCameraStream(c, cameraId)
+}
+
+// GetCameraWebSocket operation middleware
+func (siw *ServerInterfaceWrapper) GetCameraWebSocket(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "cameraId" -------------
+	var cameraId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "cameraId", c.Param("cameraId"), &cameraId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter cameraId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetCameraWebSocket(c, cameraId)
 }
 
 // GetStatus operation middleware
@@ -128,6 +155,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 
 	router.GET(options.BaseURL+"/api/cameras", wrapper.GetCameras)
 	router.GET(options.BaseURL+"/api/cameras/:cameraId/stream", wrapper.GetCameraStream)
+	router.GET(options.BaseURL+"/api/cameras/:cameraId/ws", wrapper.GetCameraWebSocket)
 	router.GET(options.BaseURL+"/api/status", wrapper.GetStatus)
 	router.GET(options.BaseURL+"/health", wrapper.HealthCheck)
 }

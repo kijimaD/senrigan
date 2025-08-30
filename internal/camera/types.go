@@ -62,6 +62,9 @@ type Manager interface {
 
 	// DiscoverCameras はシステム内のカメラデバイスを再検出する
 	DiscoverCameras(ctx context.Context) ([]string, error)
+
+	// GetCameraService は指定されたIDのカメラサービスを取得する
+	GetCameraService(id string) (Service, bool)
 }
 
 // Discovery はカメラデバイスの検出機能を提供する

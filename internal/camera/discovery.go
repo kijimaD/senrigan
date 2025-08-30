@@ -49,7 +49,10 @@ func (d *LinuxDiscovery) ScanDevices(ctx context.Context) ([]string, error) {
 
 		// デバイスが実際に利用可能かチェック
 		if d.IsDeviceAvailable(ctx, match) {
-			devices = append(devices, match)
+			// カメラの種類を判定して、メインカメラのみを追加
+			if d.IsMainCamera(ctx, match) {
+				devices = append(devices, match)
+			}
 		}
 	}
 
@@ -162,6 +165,67 @@ func extractDeviceNumber(device string) int {
 	}
 
 	return num
+}
+
+// IsMainCamera はデバイスがメインカメラ（カラー）かどうかを判定する
+func (d *LinuxDiscovery) IsMainCamera(ctx context.Context, device string) bool {
+	// v4l2-ctlでサポートフォーマットを取得
+	cmd := exec.CommandContext(ctx, "v4l2-ctl", "--device", device, "--list-formats-ext")
+	output, err := cmd.Output()
+	if err != nil {
+		// コマンドが失敗した場合は除外
+		return false
+	}
+
+	outputStr := string(output)
+	
+	// グレースケールのみのデバイスは除外
+	if strings.Contains(outputStr, "GREY") && !strings.Contains(outputStr, "YUYV") && !strings.Contains(outputStr, "MJPG") {
+		return false
+	}
+	
+	// カラーフォーマットをサポートしているかチェック
+	hasColor := strings.Contains(outputStr, "YUYV") || strings.Contains(outputStr, "MJPG")
+	
+	// 同じ物理デバイスの複数チャンネルの場合、最も小さい番号を選択
+	if hasColor {
+		deviceNum := extractDeviceNumber(device)
+		
+		// 同じカメラの他のチャンネルをチェック
+		// 例: video0, video1が同じカメラの場合、video0を選択
+		for i := 0; i < deviceNum; i++ {
+			siblingDevice := fmt.Sprintf("/dev/video%d", i)
+			if d.IsDeviceAvailable(ctx, siblingDevice) {
+				// より小さい番号のデバイスがカラーをサポートしている場合は現在のデバイスをスキップ
+				siblingCmd := exec.CommandContext(ctx, "v4l2-ctl", "--device", siblingDevice, "--list-formats-ext")
+				if siblingOutput, err := siblingCmd.Output(); err == nil {
+					siblingStr := string(siblingOutput)
+					if strings.Contains(siblingStr, "YUYV") || strings.Contains(siblingStr, "MJPG") {
+						// 同じカメラ名かチェック
+						if d.haveSameCameraName(ctx, device, siblingDevice) {
+							return false // より小さい番号のデバイスを優先
+						}
+					}
+				}
+			}
+		}
+		
+		return true
+	}
+	
+	return false
+}
+
+// haveSameCameraName は2つのデバイスが同じカメラかチェック
+func (d *LinuxDiscovery) haveSameCameraName(ctx context.Context, device1, device2 string) bool {
+	name1 := d.getV4L2DeviceName(device1)
+	name2 := d.getV4L2DeviceName(device2)
+	
+	if name1 == "" || name2 == "" {
+		return false
+	}
+	
+	return name1 == name2
 }
 
 // MockDiscovery はテスト用のモックDiscovery実装

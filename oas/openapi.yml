@@ -70,9 +70,45 @@ paths:
 
   /api/cameras/{cameraId}/stream:
     get:
-      summary: カメラストリーム接続
-      description: 指定されたカメラのストリーミングに接続します（WebSocket）
+      summary: カメラMJPEGストリーム
+      description: 指定されたカメラのMJPEGストリーミングを配信します
       operationId: getCameraStream
+      tags:
+        - Camera
+      parameters:
+        - name: cameraId
+          in: path
+          required: true
+          description: カメラID
+          schema:
+            type: string
+            example: "camera1"
+      responses:
+        '200':
+          description: MJPEGストリーム
+          content:
+            multipart/x-mixed-replace:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: カメラが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/cameras/{cameraId}/ws:
+    get:
+      summary: カメラWebSocketストリーム
+      description: 指定されたカメラのリアルタイムWebSocketストリーミングに接続します（将来実装）
+      operationId: getCameraWebSocket
       tags:
         - Camera
       parameters:
@@ -92,8 +128,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: サーバーエラー
+        '501':
+          description: 未実装
           content:
             application/json:
               schema:

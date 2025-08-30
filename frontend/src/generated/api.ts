@@ -231,8 +231,8 @@ export type StatusResponseStatusEnum = typeof StatusResponseStatusEnum[keyof typ
 export const CameraApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
         /**
-         * 指定されたカメラのストリーミングに接続します（WebSocket）
-         * @summary カメラストリーム接続
+         * 指定されたカメラのMJPEGストリーミングを配信します
+         * @summary カメラMJPEGストリーム
          * @param {string} cameraId カメラID
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -241,6 +241,40 @@ export const CameraApiAxiosParamCreator = function (configuration?: Configuratio
             // verify required parameter 'cameraId' is not null or undefined
             assertParamExists('getCameraStream', 'cameraId', cameraId)
             const localVarPath = `/api/cameras/{cameraId}/stream`
+                .replace(`{${"cameraId"}}`, encodeURIComponent(String(cameraId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 指定されたカメラのリアルタイムWebSocketストリーミングに接続します（将来実装）
+         * @summary カメラWebSocketストリーム
+         * @param {string} cameraId カメラID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getCameraWebSocket: async (cameraId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'cameraId' is not null or undefined
+            assertParamExists('getCameraWebSocket', 'cameraId', cameraId)
+            const localVarPath = `/api/cameras/{cameraId}/ws`
                 .replace(`{${"cameraId"}}`, encodeURIComponent(String(cameraId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -305,16 +339,29 @@ export const CameraApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = CameraApiAxiosParamCreator(configuration)
     return {
         /**
-         * 指定されたカメラのストリーミングに接続します（WebSocket）
-         * @summary カメラストリーム接続
+         * 指定されたカメラのMJPEGストリーミングを配信します
+         * @summary カメラMJPEGストリーム
          * @param {string} cameraId カメラID
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getCameraStream(cameraId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+        async getCameraStream(cameraId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<File>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getCameraStream(cameraId, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['CameraApi.getCameraStream']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 指定されたカメラのリアルタイムWebSocketストリーミングに接続します（将来実装）
+         * @summary カメラWebSocketストリーム
+         * @param {string} cameraId カメラID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getCameraWebSocket(cameraId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getCameraWebSocket(cameraId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['CameraApi.getCameraWebSocket']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -340,14 +387,24 @@ export const CameraApiFactory = function (configuration?: Configuration, basePat
     const localVarFp = CameraApiFp(configuration)
     return {
         /**
-         * 指定されたカメラのストリーミングに接続します（WebSocket）
-         * @summary カメラストリーム接続
+         * 指定されたカメラのMJPEGストリーミングを配信します
+         * @summary カメラMJPEGストリーム
          * @param {string} cameraId カメラID
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getCameraStream(cameraId: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+        getCameraStream(cameraId: string, options?: RawAxiosRequestConfig): AxiosPromise<File> {
             return localVarFp.getCameraStream(cameraId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 指定されたカメラのリアルタイムWebSocketストリーミングに接続します（将来実装）
+         * @summary カメラWebSocketストリーム
+         * @param {string} cameraId カメラID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getCameraWebSocket(cameraId: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.getCameraWebSocket(cameraId, options).then((request) => request(axios, basePath));
         },
         /**
          * 設定されているカメラの一覧を取得します
@@ -369,8 +426,8 @@ export const CameraApiFactory = function (configuration?: Configuration, basePat
  */
 export class CameraApi extends BaseAPI {
     /**
-     * 指定されたカメラのストリーミングに接続します（WebSocket）
-     * @summary カメラストリーム接続
+     * 指定されたカメラのMJPEGストリーミングを配信します
+     * @summary カメラMJPEGストリーム
      * @param {string} cameraId カメラID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -378,6 +435,18 @@ export class CameraApi extends BaseAPI {
      */
     public getCameraStream(cameraId: string, options?: RawAxiosRequestConfig) {
         return CameraApiFp(this.configuration).getCameraStream(cameraId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 指定されたカメラのリアルタイムWebSocketストリーミングに接続します（将来実装）
+     * @summary カメラWebSocketストリーム
+     * @param {string} cameraId カメラID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof CameraApi
+     */
+    public getCameraWebSocket(cameraId: string, options?: RawAxiosRequestConfig) {
+        return CameraApiFp(this.configuration).getCameraWebSocket(cameraId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

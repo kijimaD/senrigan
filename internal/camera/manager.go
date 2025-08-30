@@ -3,6 +3,7 @@ package camera
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -119,6 +120,15 @@ func (m *DefaultCameraManager) GetCamera(id string) (*Camera, bool) {
 	// コピーを返す
 	result := *camera
 	return &result, true
+}
+
+// GetCameraService は指定されたIDのカメラサービスを取得する
+func (m *DefaultCameraManager) GetCameraService(id string) (Service, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	service, exists := m.services[id]
+	return service, exists
 }
 
 // AddCamera はカメラを動的に追加する
@@ -303,6 +313,15 @@ func (m *DefaultCameraManager) addCameraInternal(ctx context.Context, device str
 	// 管理対象に追加
 	m.cameras[cam.ID] = cam
 	m.services[cam.ID] = service
+
+	// カメラを自動的に開始
+	if err := service.Start(ctx); err != nil {
+		// 開始に失敗してもカメラは登録しておく
+		log.Printf("カメラ %s の自動開始に失敗: %v", cam.ID, err)
+	} else {
+		cam.Status = StatusActive
+		log.Printf("カメラ %s を自動開始しました", cam.ID)
+	}
 
 	return cam, nil
 }
