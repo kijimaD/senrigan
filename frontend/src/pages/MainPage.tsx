@@ -91,10 +91,6 @@ export function MainPage() {
             <p>
               <strong>カメラ数:</strong> {status.cameras}台
             </p>
-            <p>
-              <strong>最終更新:</strong>{" "}
-              {new Date(status.timestamp).toLocaleString("ja-JP")}
-            </p>
           </div>
         </section>
       )}

@@ -107,9 +107,6 @@ type StatusResponse struct {
 
 	// Status システムの動作状態
 	Status StatusResponseStatus `json:"status"`
-
-	// Timestamp レスポンス生成時刻（RFC3339形式）
-	Timestamp time.Time `json:"timestamp"`
 }
 
 // StatusResponseStatus システムの動作状態

@@ -207,12 +207,6 @@ export interface StatusResponse {
      * @memberof StatusResponse
      */
     'cameras': number;
-    /**
-     * レスポンス生成時刻（RFC3339形式）
-     * @type {string}
-     * @memberof StatusResponse
-     */
-    'timestamp': string;
 }
 
 export const StatusResponseStatusEnum = {

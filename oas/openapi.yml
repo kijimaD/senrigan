@@ -160,7 +160,6 @@ components:
         - status
         - server
         - cameras
-        - timestamp
       properties:
         status:
           type: string
@@ -174,11 +173,6 @@ components:
           description: 設定されているカメラの台数
           minimum: 0
           example: 1
-        timestamp:
-          type: string
-          format: date-time
-          description: レスポンス生成時刻（RFC3339形式）
-          example: "2023-10-01T12:00:00Z"
     
     ServerInfo:
       type: object
