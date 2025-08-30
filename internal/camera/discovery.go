@@ -178,19 +178,19 @@ func (d *LinuxDiscovery) IsMainCamera(ctx context.Context, device string) bool {
 	}
 
 	outputStr := string(output)
-	
+
 	// グレースケールのみのデバイスは除外
 	if strings.Contains(outputStr, "GREY") && !strings.Contains(outputStr, "YUYV") && !strings.Contains(outputStr, "MJPG") {
 		return false
 	}
-	
+
 	// カラーフォーマットをサポートしているかチェック
 	hasColor := strings.Contains(outputStr, "YUYV") || strings.Contains(outputStr, "MJPG")
-	
+
 	// 同じ物理デバイスの複数チャンネルの場合、最も小さい番号を選択
 	if hasColor {
 		deviceNum := extractDeviceNumber(device)
-		
+
 		// 同じカメラの他のチャンネルをチェック
 		// 例: video0, video1が同じカメラの場合、video0を選択
 		for i := 0; i < deviceNum; i++ {
@@ -209,22 +209,22 @@ func (d *LinuxDiscovery) IsMainCamera(ctx context.Context, device string) bool {
 				}
 			}
 		}
-		
+
 		return true
 	}
-	
+
 	return false
 }
 
 // haveSameCameraName は2つのデバイスが同じカメラかチェック
-func (d *LinuxDiscovery) haveSameCameraName(ctx context.Context, device1, device2 string) bool {
+func (d *LinuxDiscovery) haveSameCameraName(_ context.Context, device1, device2 string) bool {
 	name1 := d.getV4L2DeviceName(device1)
 	name2 := d.getV4L2DeviceName(device2)
-	
+
 	if name1 == "" || name2 == "" {
 		return false
 	}
-	
+
 	return name1 == name2
 }
 

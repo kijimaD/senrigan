@@ -53,8 +53,8 @@ func Load() (*Config, error) {
 		Server: ServerConfig{
 			Host:         getEnvOrDefault("SERVER_HOST", "0.0.0.0"),
 			Port:         getEnvAsIntOrDefault("SERVER_PORT", 8080),
-			ReadTimeout:  30 * time.Second,
-			WriteTimeout: 30 * time.Second,
+			ReadTimeout:  10 * time.Second,
+			WriteTimeout: 0, // ストリーミング用にタイムアウト無効化
 		},
 		Camera: CameraConfig{
 			Devices: []CameraDevice{

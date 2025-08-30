@@ -28,8 +28,9 @@ func TestConfigLoad(t *testing.T) {
 	if cfg.Server.ReadTimeout <= 0 {
 		t.Error("読み込みタイムアウトが設定されていません")
 	}
-	if cfg.Server.WriteTimeout <= 0 {
-		t.Error("書き込みタイムアウトが設定されていません")
+	// WriteTimeout は 0（無効）でも正常
+	if cfg.Server.WriteTimeout < 0 {
+		t.Error("書き込みタイムアウトが負の値です")
 	}
 
 	// カメラ設定の検証

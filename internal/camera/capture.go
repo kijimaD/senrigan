@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"image"
-	"image/color"
 	"image/jpeg"
 	"os/exec"
 	"strconv"
@@ -120,32 +119,6 @@ func (c *V4L2Capturer) CaptureFrameAsJPEG(ctx context.Context) ([]byte, error) {
 	}
 
 	return stdout.Bytes(), nil
-}
-
-// generateTestFrame はテスト用のダミーJPEG画像を生成する
-func (c *V4L2Capturer) generateTestFrame() []byte {
-	// 固定サイズのテスト画像を作成
-	img := image.NewRGBA(image.Rect(0, 0, c.width, c.height))
-	
-	// 緑色で塗りつぶし（テスト用）
-	for y := 0; y < c.height; y++ {
-		for x := 0; x < c.width; x++ {
-			img.Set(x, y, color.RGBA{0, 255, 0, 255}) // 緑色
-		}
-	}
-	
-	// テキストを追加（時刻表示）
-	timestamp := time.Now().Format("15:04:05")
-	_ = timestamp // とりあえずタイムスタンプは使わない
-	
-	// JPEGエンコード
-	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 80}); err != nil {
-		// エラーの場合は小さなダミー画像を返す
-		return []byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xD9}
-	}
-	
-	return buf.Bytes()
 }
 
 // StartStream は連続キャプチャ用のストリームを開始する

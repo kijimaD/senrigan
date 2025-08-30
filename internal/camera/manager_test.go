@@ -26,8 +26,9 @@ func TestDefaultCameraManager_Basic(t *testing.T) {
 
 	// カメラの詳細確認
 	for _, cam := range cameras {
-		if cam.Status != StatusInactive {
-			t.Errorf("Expected camera %s to be inactive, got %s", cam.ID, cam.Status)
+		// カメラは自動開始されるため、StatusActiveであることを期待
+		if cam.Status != StatusActive {
+			t.Errorf("Expected camera %s to be active (auto-started), got %s", cam.ID, cam.Status)
 		}
 
 		if cam.FPS != defaultSettings.FPS {
@@ -125,6 +126,13 @@ func TestDefaultCameraManager_StartStopCamera(t *testing.T) {
 	}
 
 	cameraID := cameras[0].ID
+
+	// カメラが既に自動開始されている場合は一度停止
+	if cameras[0].Status == StatusActive {
+		if err := manager.StopCamera(ctx, cameraID); err != nil {
+			t.Fatalf("StopCamera failed: %v", err)
+		}
+	}
 
 	// カメラを開始
 	if err := manager.StartCamera(ctx, cameraID); err != nil {
