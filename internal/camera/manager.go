@@ -304,22 +304,20 @@ func (m *DefaultCameraManager) addCameraInternal(ctx context.Context, device str
 }
 
 // removeCameraInternal は内部でカメラを削除する（ロック済み前提）
-func (m *DefaultCameraManager) removeCameraInternal(ctx context.Context, id string) error {
+func (m *DefaultCameraManager) removeCameraInternal(ctx context.Context, id string) {
 	service, exists := m.services[id]
 	if !exists {
-		return nil
+		return
 	}
 
 	// カメラが動作中の場合は停止
 	if service.GetStatus() == StatusActive {
-		service.Stop(ctx) // エラーは無視
+		_ = service.Stop(ctx) // エラーは無視
 	}
 
 	// 管理対象から削除
 	delete(m.cameras, id)
 	delete(m.services, id)
-
-	return nil
 }
 
 // backgroundScan は定期的なデバイススキャンを実行する
@@ -338,7 +336,7 @@ func (m *DefaultCameraManager) backgroundScan(ctx context.Context) {
 		case <-ticker.C:
 			// 定期的にデバイスをスキャン
 			m.mu.Lock()
-			m.performDiscovery(ctx)
+			_, _ = m.performDiscovery(ctx)
 			m.mu.Unlock()
 		}
 	}

@@ -8,6 +8,7 @@ import (
 // Status はカメラの動作状態を表す
 type Status string
 
+// カメラの状態定数
 const (
 	StatusInactive Status = "inactive" // カメラは停止中
 	StatusActive   Status = "active"   // カメラは動作中

@@ -44,11 +44,11 @@ func TestCameraService_StartStop(t *testing.T) {
 	service := NewCameraService(camera)
 
 	// 開始（存在しないデバイスなのでエラーになる可能性があるが、それで良い）
-	err := service.Start(ctx)
+	_ = service.Start(ctx)
 	// エラーは無視してもOK（実際のデバイスがない環境でのテスト）
 
 	// 停止
-	err = service.Stop(ctx)
+	err := service.Stop(ctx)
 	if err != nil {
 		t.Fatalf("Stop failed: %v", err)
 	}
@@ -281,7 +281,7 @@ func TestCameraService_DoubleStart(t *testing.T) {
 	}
 
 	// クリーンアップ
-	service.Stop(ctx)
+	_ = service.Stop(ctx)
 }
 
 func TestCameraService_StopInactive(t *testing.T) {

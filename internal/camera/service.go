@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// CameraService は個別カメラの制御を担う実装
-type CameraService struct {
+// defaultCameraService は個別カメラの制御を担う実装
+type defaultCameraService struct {
 	camera   *Camera
 	status   Status
 	settings Settings
@@ -22,9 +22,9 @@ type CameraService struct {
 	wg sync.WaitGroup
 }
 
-// NewCameraService は新しいCameraServiceを作成する
+// NewCameraService は新しいdefaultCameraServiceを作成する
 func NewCameraService(camera *Camera) Service {
-	return &CameraService{
+	return &defaultCameraService{
 		camera: camera,
 		status: StatusInactive,
 		settings: Settings{
@@ -38,7 +38,7 @@ func NewCameraService(camera *Camera) Service {
 }
 
 // Start はカメラサービスを開始する
-func (s *CameraService) Start(ctx context.Context) error {
+func (s *defaultCameraService) Start(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -64,7 +64,7 @@ func (s *CameraService) Start(ctx context.Context) error {
 }
 
 // Stop はカメラサービスを停止する
-func (s *CameraService) Stop(ctx context.Context) error {
+func (s *defaultCameraService) Stop(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -94,21 +94,21 @@ func (s *CameraService) Stop(ctx context.Context) error {
 }
 
 // GetStatus は現在の状態を取得する
-func (s *CameraService) GetStatus() Status {
+func (s *defaultCameraService) GetStatus() Status {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.status
 }
 
 // GetSettings は現在の設定を取得する
-func (s *CameraService) GetSettings() Settings {
+func (s *defaultCameraService) GetSettings() Settings {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.settings
 }
 
 // UpdateSettings は設定を更新する
-func (s *CameraService) UpdateSettings(ctx context.Context, settings Settings) error {
+func (s *defaultCameraService) UpdateSettings(ctx context.Context, settings Settings) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -131,7 +131,7 @@ func (s *CameraService) UpdateSettings(ctx context.Context, settings Settings) e
 }
 
 // initializeCamera はカメラデバイスを初期化する（モック実装）
-func (s *CameraService) initializeCamera(ctx context.Context) error {
+func (s *defaultCameraService) initializeCamera(ctx context.Context) error {
 	// 実際の実装では、V4L2 APIを使ってカメラデバイスを開く
 	// ここではモック実装として成功を返す
 
@@ -145,14 +145,14 @@ func (s *CameraService) initializeCamera(ctx context.Context) error {
 }
 
 // cleanupCamera はカメラデバイスをクリーンアップする
-func (s *CameraService) cleanupCamera(ctx context.Context) error {
+func (s *defaultCameraService) cleanupCamera(_ context.Context) error {
 	// 実際の実装では、開いたデバイスファイルをクローズする
 	// ここではモック実装として成功を返す
 	return nil
 }
 
 // monitorCamera はカメラの状態を監視する
-func (s *CameraService) monitorCamera(ctx context.Context) {
+func (s *defaultCameraService) monitorCamera(ctx context.Context) {
 	defer s.wg.Done()
 
 	ticker := time.NewTicker(5 * time.Second) // 5秒間隔で監視
@@ -171,7 +171,7 @@ func (s *CameraService) monitorCamera(ctx context.Context) {
 }
 
 // checkCameraHealth はカメラの健全性をチェックする
-func (s *CameraService) checkCameraHealth(ctx context.Context) {
+func (s *defaultCameraService) checkCameraHealth(ctx context.Context) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -197,7 +197,7 @@ func (s *CameraService) checkCameraHealth(ctx context.Context) {
 }
 
 // validateSettings は設定値の妥当性を検証する
-func (s *CameraService) validateSettings(settings Settings) error {
+func (s *defaultCameraService) validateSettings(settings Settings) error {
 	if settings.FPS <= 0 || settings.FPS > 60 {
 		return fmt.Errorf("無効なFPS値: %d", settings.FPS)
 	}
@@ -214,9 +214,10 @@ func (s *CameraService) validateSettings(settings Settings) error {
 }
 
 // applySettings は設定をカメラデバイスに適用する（モック実装）
-func (s *CameraService) applySettings(ctx context.Context, settings Settings) error {
+func (s *defaultCameraService) applySettings(_ context.Context, settings Settings) error {
 	// 実際の実装では、V4L2 APIを使って解像度やフレームレートを設定
 	// ここではモック実装として成功を返す
+	_ = settings // 現在は未使用だが将来使用する予定
 	return nil
 }
 
@@ -246,7 +247,7 @@ func NewMockCameraService(camera *Camera) *MockCameraService {
 }
 
 // Start はモックカメラサービスを開始する
-func (m *MockCameraService) Start(ctx context.Context) error {
+func (m *MockCameraService) Start(_ context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -266,7 +267,7 @@ func (m *MockCameraService) Start(ctx context.Context) error {
 }
 
 // Stop はモックカメラサービスを停止する
-func (m *MockCameraService) Stop(ctx context.Context) error {
+func (m *MockCameraService) Stop(_ context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -295,7 +296,7 @@ func (m *MockCameraService) GetSettings() Settings {
 }
 
 // UpdateSettings は設定を更新する
-func (m *MockCameraService) UpdateSettings(ctx context.Context, settings Settings) error {
+func (m *MockCameraService) UpdateSettings(_ context.Context, settings Settings) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

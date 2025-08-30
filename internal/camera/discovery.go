@@ -54,7 +54,7 @@ func (d *LinuxDiscovery) ScanDevices(ctx context.Context) ([]string, error) {
 }
 
 // IsDeviceAvailable は指定されたデバイスが利用可能かチェックする
-func (d *LinuxDiscovery) IsDeviceAvailable(ctx context.Context, device string) bool {
+func (d *LinuxDiscovery) IsDeviceAvailable(_ context.Context, device string) bool {
 	// デバイスファイルの存在確認
 	if _, err := os.Stat(device); os.IsNotExist(err) {
 		return false
@@ -65,7 +65,9 @@ func (d *LinuxDiscovery) IsDeviceAvailable(ctx context.Context, device string) b
 	if err != nil {
 		return false
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	// V4L2デバイスかどうかの簡易チェック
 	// 実際のプロダクション環境では、より詳細なチェックが必要
@@ -153,12 +155,12 @@ func NewMockDiscovery(devices []string) *MockDiscovery {
 }
 
 // ScanDevices はモックデバイス一覧を返す
-func (m *MockDiscovery) ScanDevices(ctx context.Context) ([]string, error) {
+func (m *MockDiscovery) ScanDevices(_ context.Context) ([]string, error) {
 	return m.devices, nil
 }
 
 // IsDeviceAvailable はモックデバイスが利用可能かチェックする
-func (m *MockDiscovery) IsDeviceAvailable(ctx context.Context, device string) bool {
+func (m *MockDiscovery) IsDeviceAvailable(_ context.Context, device string) bool {
 	for _, d := range m.devices {
 		if d == device {
 			return true
@@ -168,7 +170,7 @@ func (m *MockDiscovery) IsDeviceAvailable(ctx context.Context, device string) bo
 }
 
 // GetDeviceInfo はモックデバイス情報を取得する
-func (m *MockDiscovery) GetDeviceInfo(ctx context.Context, device string) (*DeviceInfo, error) {
+func (m *MockDiscovery) GetDeviceInfo(_ context.Context, device string) (*DeviceInfo, error) {
 	info, exists := m.deviceInfos[device]
 	if !exists {
 		return nil, fmt.Errorf("デバイスが見つかりません: %s", device)

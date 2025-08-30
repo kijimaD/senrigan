@@ -51,7 +51,7 @@ func TestDefaultCameraManager_AddRemoveCamera(t *testing.T) {
 	if err := manager.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
-	defer manager.Stop(ctx)
+	defer func() { _ = manager.Stop(ctx) }()
 
 	// 初期状態では0台
 	cameras := manager.GetCameras()
@@ -117,7 +117,7 @@ func TestDefaultCameraManager_StartStopCamera(t *testing.T) {
 	if err := manager.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
-	defer manager.Stop(ctx)
+	defer func() { _ = manager.Stop(ctx) }()
 
 	cameras := manager.GetCameras()
 	if len(cameras) != 1 {
@@ -167,7 +167,7 @@ func TestDefaultCameraManager_DiscoverCameras(t *testing.T) {
 	if err := manager.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
-	defer manager.Stop(ctx)
+	defer func() { _ = manager.Stop(ctx) }()
 
 	// 初期状態で1台
 	cameras := manager.GetCameras()
@@ -224,7 +224,7 @@ func TestDefaultCameraManager_ErrorCases(t *testing.T) {
 	if err := manager.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
-	defer manager.Stop(ctx)
+	defer func() { _ = manager.Stop(ctx) }()
 
 	// 存在しないデバイスを追加
 	_, err := manager.AddCamera(ctx, "/dev/video99", defaultSettings)
@@ -271,7 +271,7 @@ func TestDefaultCameraManager_ConcurrentAccess(t *testing.T) {
 	if err := manager.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
-	defer manager.Stop(ctx)
+	defer func() { _ = manager.Stop(ctx) }()
 
 	// 複数のゴルーチンで同時アクセス
 	done := make(chan bool, 2)
