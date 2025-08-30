@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -143,25 +144,18 @@ func (s *GinServer) setupRoutes() {
 	// 生成されたルートを登録（OpenAPI仕様に基づく）
 	generated.RegisterHandlers(s.router, handler)
 
-	// 開発環境用の簡易ルートページ
-	s.router.GET("/", s.handleRoot)
-}
+	// フロントエンドの静的ファイルを配信
+	s.router.Static("/assets", "./frontend/dist/assets")
+	s.router.StaticFile("/favicon.ico", "./frontend/dist/favicon.ico")
 
-// handleRoot はルートパスのハンドラ（HTMLページ）
-func (s *GinServer) handleRoot(c *gin.Context) {
-	c.Header("Content-Type", "text/html; charset=utf-8")
-	c.String(http.StatusOK, `<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <title>Senrigan - 監視カメラシステム</title>
-</head>
-<body>
-    <h1>Senrigan 監視カメラシステム</h1>
-    <p>サーバーが正常に起動しています。</p>
-    <p>ステータス: <a href="/api/status">/api/status</a></p>
-    <p>ヘルスチェック: <a href="/health">/health</a></p>
-    <p>カメラ一覧: <a href="/api/cameras">/api/cameras</a></p>
-</body>
-</html>`)
+	// SPAのためのフォールバック（APIルート以外はindex.htmlを返す）
+	s.router.NoRoute(func(c *gin.Context) {
+		// APIルートの場合は404を返す
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") || strings.HasPrefix(c.Request.URL.Path, "/health") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
+			return
+		}
+		// それ以外はindex.htmlを配信（SPAルーティング用）
+		c.File("./frontend/dist/index.html")
+	})
 }
