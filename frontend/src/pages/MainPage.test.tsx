@@ -1,4 +1,3 @@
-import { MainPage } from "./MainPage";
 import { StatusApi, CameraApi } from "../generated/api";
 
 // APIクライアントのモック
