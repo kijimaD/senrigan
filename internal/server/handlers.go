@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"sort"
 
 	"senrigan/internal/camera"
 	"senrigan/internal/config"
@@ -67,6 +68,11 @@ func (h *SenriganHandler) GetCameras(c *gin.Context) {
 
 		cameras = append(cameras, cameraInfo)
 	}
+
+	// カメラを名前順でソート
+	sort.Slice(cameras, func(i, j int) bool {
+		return cameras[i].Name < cameras[j].Name
+	})
 
 	response := generated.CamerasResponse{
 		Cameras: cameras,
