@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
+	"time"
 )
 
 // LinuxDiscovery はLinux環境でのカメラデバイス検出を実装する
@@ -105,8 +108,43 @@ func (d *LinuxDiscovery) isV4L2Device(device string) bool {
 
 // generateDeviceName はデバイスパスから表示名を生成する
 func (d *LinuxDiscovery) generateDeviceName(device string) string {
+	// v4l2-ctlを使って実際のカメラ名を取得
+	if realName := d.getV4L2DeviceName(device); realName != "" {
+		return realName
+	}
+
+	// フォールバック: デバイス番号から生成
 	num := extractDeviceNumber(device)
 	return fmt.Sprintf("カメラ %d", num)
+}
+
+// getV4L2DeviceName はv4l2-ctlを使って実際のデバイス名を取得する
+func (d *LinuxDiscovery) getV4L2DeviceName(device string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "v4l2-ctl", "--device", device, "--info")
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	// "Card type" の行からカメラ名を抽出
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "Card type") {
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) == 2 {
+				cardType := strings.TrimSpace(parts[1])
+				if cardType != "" {
+					return cardType
+				}
+			}
+		}
+	}
+
+	return ""
 }
 
 // extractDeviceNumber はデバイスパスから番号を抽出する
