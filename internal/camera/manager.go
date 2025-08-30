@@ -62,6 +62,35 @@ func (m *DefaultCameraManager) Start(ctx context.Context) error {
 		return fmt.Errorf("初期スキャンに失敗: %w", err)
 	}
 
+	// X11画面録画をデフォルトで追加（USBカメラの前に追加）
+	x11Config := SourceConfig{
+		Device: "x11:screen",
+		Settings: VideoSettings{
+			Width:      1920,
+			Height:     1080,
+			FrameRate:  10,
+			Format:     "MJPEG",
+			Quality:    3,
+			Properties: make(map[string]interface{}),
+		},
+	}
+
+	x11Source, err := m.sourceFactory.CreateSource(SourceTypeX11Screen, x11Config)
+	if err != nil {
+		log.Printf("X11画面録画の作成に失敗: %v", err)
+	} else {
+		// VideoSourceを管理対象に追加
+		sourceID := x11Source.GetInfo().ID
+		m.videoSources[sourceID] = x11Source
+
+		// X11画面録画を自動的に開始
+		if err := x11Source.Start(ctx); err != nil {
+			log.Printf("X11画面録画 %s の自動開始に失敗: %v", sourceID, err)
+		} else {
+			log.Printf("X11画面録画 %s を自動開始しました", sourceID)
+		}
+	}
+
 	// 自動検出が有効な場合、バックグラウンドスキャンを開始
 	if m.autoDiscovery {
 		m.wg.Add(1)
@@ -138,6 +167,11 @@ func (m *DefaultCameraManager) performDiscovery(ctx context.Context) ([]string, 
 	// 存在しなくなったデバイスを検出
 	var toRemove []string
 	for id, source := range m.videoSources {
+		// X11ScreenSourceは削除対象から除外
+		if source.GetInfo().Type == SourceTypeX11Screen {
+			continue
+		}
+
 		deviceExists := false
 		for _, device := range devices {
 			if source.GetInfo().Device == device {
