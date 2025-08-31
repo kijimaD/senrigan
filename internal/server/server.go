@@ -111,15 +111,19 @@ func (s *GinServer) Start(ctx context.Context) error {
 func (s *GinServer) Shutdown() error {
 	log.Println("サーバーをシャットダウンしています...")
 
-	// 5秒のタイムアウトを設定
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	// カメラマネージャーを停止
+	log.Println("カメラマネージャーを停止中...")
 	if err := s.cameraManager.Stop(ctx); err != nil {
 		log.Printf("カメラマネージャーの停止に失敗: %v", err)
+	} else {
+		log.Println("カメラマネージャーを停止しました")
 	}
 
+	// HTTPサーバーをシャットダウン
+	log.Println("HTTPサーバーを停止中...")
 	if err := s.httpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("サーバーのシャットダウンに失敗: %w", err)
 	}

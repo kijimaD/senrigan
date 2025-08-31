@@ -110,6 +110,10 @@ func (c *X11Capturer) StartStream(ctx context.Context, frameChan chan<- []byte, 
 	// JPEGフレームを読み取り
 	go func() {
 		defer func() {
+			// コンテキストキャンセル時はプロセスを強制終了
+			if cmd.Process != nil {
+				_ = cmd.Process.Kill()
+			}
 			_ = cmd.Wait()
 		}()
 
