@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"senrigan/internal/timelapse"
 )
 
 // Config はアプリケーション全体の設定を保持する構造体
 type Config struct {
-	Server ServerConfig `yaml:"server"`
-	Camera CameraConfig `yaml:"camera"`
+	Server    ServerConfig     `yaml:"server"`
+	Camera    CameraConfig     `yaml:"camera"`
+	Timelapse timelapse.Config `yaml:"timelapse"`
 }
 
 // ServerConfig はHTTPサーバーの設定
@@ -62,6 +65,7 @@ func Load() (*Config, error) {
 			DefaultWidth:  1280,
 			DefaultHeight: 720,
 		},
+		Timelapse: timelapse.DefaultConfig(),
 	}
 
 	// 設定の検証

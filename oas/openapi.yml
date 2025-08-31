@@ -39,7 +39,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StatusResponse'
+                $ref: '#/components/schemas/SystemStatusResponse'
         '500':
           description: サーバーエラー
           content:
@@ -135,6 +135,69 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api/timelapse/videos:
+    get:
+      summary: タイムラプス動画一覧取得
+      description: 結合されたタイムラプス動画一覧を取得します
+      operationId: getTimelapseVideos
+      tags:
+        - Timelapse
+      responses:
+        '200':
+          description: タイムラプス動画一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoList'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/timelapse/config:
+    get:
+      summary: タイムラプス設定取得
+      description: ファイルベースのタイムラプス設定を取得します
+      operationId: getTimelapseConfig
+      tags:
+        - Timelapse
+      responses:
+        '200':
+          description: タイムラプス設定
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/timelapse/status:
+    get:
+      summary: タイムラプスシステム状態
+      description: タイムラプスシステム全体の状態を取得します
+      operationId: getTimelapseStatus
+      tags:
+        - Timelapse
+      responses:
+        '200':
+          description: タイムラプスシステム状態
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     HealthResponse:
@@ -148,7 +211,7 @@ components:
           description: サーバーの稼働状況
           example: "healthy"
     
-    StatusResponse:
+    SystemStatusResponse:
       type: object
       required:
         - status
@@ -266,6 +329,139 @@ components:
           type: string
           description: エラーの詳細情報（開発用）
 
+    Config:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: タイムラプス有効/無効
+          default: true
+        capture_interval:
+          type: string
+          description: 撮影間隔（秒）
+          default: "2s"
+          example: "2s"
+        update_interval:
+          type: string
+          description: 動画更新間隔
+          default: "1h"
+          example: "1h"
+        output_format:
+          type: string
+          description: 出力フォーマット
+          default: "mp4"
+          example: "mp4"
+        quality:
+          type: integer
+          description: 動画品質 (1-5)
+          minimum: 1
+          maximum: 5
+          default: 3
+        resolution:
+          $ref: '#/components/schemas/Resolution'
+        max_frame_buffer:
+          type: integer
+          description: 最大フレームバッファサイズ
+          default: 1800
+        retention_days:
+          type: integer
+          description: 保持期間（日数）
+          default: 30
+
+    Resolution:
+      type: object
+      required:
+        - width
+        - height
+      properties:
+        width:
+          type: integer
+          description: 幅（ピクセル）
+          example: 1920
+        height:
+          type: integer
+          description: 高さ（ピクセル）
+          example: 1080
+
+    Video:
+      type: object
+      required:
+        - date
+        - file_path
+        - file_size
+        - status
+      properties:
+        date:
+          type: string
+          format: date-time
+          description: 作成日時
+        file_path:
+          type: string
+          description: ファイルパス
+          example: "/data/timelapse/timelapse_2023-12-01.mp4"
+        file_size:
+          type: integer
+          format: int64
+          description: ファイルサイズ（バイト）
+          example: 1048576
+        duration:
+          type: string
+          description: 動画時間
+          example: "1h23m45s"
+        frame_count:
+          type: integer
+          description: 総フレーム数
+          example: 1800
+        start_time:
+          type: string
+          format: date-time
+          description: 録画開始時刻
+        end_time:
+          type: string
+          format: date-time
+          description: 録画終了時刻
+        status:
+          type: string
+          enum: [recording, completed, error, paused]
+          description: タイムラプス状態
+        source_count:
+          type: integer
+          description: 結合された映像ソース数
+          example: 3
+
+    VideoList:
+      type: array
+      items:
+        $ref: '#/components/schemas/Video'
+
+
+    StatusResponse:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: タイムラプス機能有効/無効
+        active_sources:
+          type: integer
+          description: アクティブな映像ソース数
+        total_videos:
+          type: integer
+          description: 総動画数
+        storage_used:
+          type: integer
+          format: int64
+          description: 使用ストレージ容量（バイト）
+        current_video:
+          type: string
+          description: 現在録画中の動画ファイル名
+        frame_buffer_size:
+          type: integer
+          description: 現在のフレームバッファサイズ
+        last_update:
+          type: string
+          format: date-time
+          description: 最後の動画更新時刻
+
 tags:
   - name: Health
     description: ヘルスチェック関連のエンドポイント
@@ -273,3 +469,5 @@ tags:
     description: システム状態管理
   - name: Camera
     description: カメラ制御とストリーミング
+  - name: Timelapse
+    description: タイムラプス動画機能

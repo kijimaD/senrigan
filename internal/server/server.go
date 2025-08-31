@@ -14,16 +14,18 @@ import (
 	"senrigan/internal/camera"
 	"senrigan/internal/config"
 	"senrigan/internal/generated"
+	"senrigan/internal/timelapse"
 
 	"github.com/gin-gonic/gin"
 )
 
 // GinServer はGinベースのHTTPサーバーを管理する構造体
 type GinServer struct {
-	config        *config.Config
-	httpServer    *http.Server
-	router        *gin.Engine
-	cameraManager camera.Manager
+	config           *config.Config
+	httpServer       *http.Server
+	router           *gin.Engine
+	cameraManager    camera.Manager
+	timelapseManager timelapse.Manager
 }
 
 // NewGin は新しいGinServerインスタンスを作成する
@@ -55,10 +57,15 @@ func NewGin(cfg *config.Config) *GinServer {
 	discovery := camera.NewLinuxDiscovery()
 	cameraManager := camera.NewDefaultCameraManager(discovery)
 
+	// タイムラプスマネージャーを初期化
+	timelapseOutputDir := "/data/timelapse" // TODO: 設定ファイルから読み込み
+	timelapseManager := timelapse.NewDefaultManager(cameraManager, timelapseOutputDir, cfg.Timelapse)
+
 	return &GinServer{
-		config:        cfg,
-		router:        router,
-		cameraManager: cameraManager,
+		config:           cfg,
+		router:           router,
+		cameraManager:    cameraManager,
+		timelapseManager: timelapseManager,
 		httpServer: &http.Server{
 			Addr:         cfg.ServerAddress(),
 			Handler:      router,
@@ -73,6 +80,12 @@ func (s *GinServer) Start(ctx context.Context) error {
 	// カメラマネージャーを開始
 	if err := s.cameraManager.Start(ctx); err != nil {
 		return fmt.Errorf("カメラマネージャーの起動に失敗: %w", err)
+	}
+
+	// タイムラプスマネージャーを開始
+	if err := s.timelapseManager.Start(ctx); err != nil {
+		log.Printf("タイムラプスマネージャーの起動に失敗: %v", err)
+		// タイムラプスはオプション機能なので失敗してもサーバー起動を続行
 	}
 
 	// ルートを設定
@@ -114,6 +127,14 @@ func (s *GinServer) Shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// タイムラプスマネージャーを停止
+	log.Println("タイムラプスマネージャーを停止中...")
+	if err := s.timelapseManager.Stop(ctx); err != nil {
+		log.Printf("タイムラプスマネージャーの停止に失敗: %v", err)
+	} else {
+		log.Println("タイムラプスマネージャーを停止しました")
+	}
+
 	// カメラマネージャーを停止
 	log.Println("カメラマネージャーを停止中...")
 	if err := s.cameraManager.Stop(ctx); err != nil {
@@ -136,8 +157,9 @@ func (s *GinServer) Shutdown() error {
 func (s *GinServer) setupRoutes() {
 	// ServerInterfaceを実装したハンドラーを作成
 	handler := &SenriganHandler{
-		config:        s.config,
-		cameraManager: s.cameraManager,
+		config:           s.config,
+		cameraManager:    s.cameraManager,
+		timelapseManager: s.timelapseManager,
 	}
 
 	// 生成されたルートを登録（OpenAPI仕様に基づく）

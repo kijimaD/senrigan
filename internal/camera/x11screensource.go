@@ -236,3 +236,16 @@ func NewX11ScreenSourceFromConfig(config SourceConfig) (VideoSource, error) {
 
 	return source, nil
 }
+
+// CaptureFrameForTimelapse はタイムラプス用に1フレームをキャプチャする
+func (s *X11ScreenSource) CaptureFrameForTimelapse(ctx context.Context) ([]byte, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.status != StatusActive {
+		return nil, fmt.Errorf("画面キャプチャが非アクティブです")
+	}
+
+	// X11Capturerを使って1フレームをキャプチャ
+	return s.capturer.CaptureFrameAsJPEG(ctx)
+}

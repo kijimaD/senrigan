@@ -64,6 +64,33 @@ func (c *X11Capturer) TestCapture(ctx context.Context) error {
 	return nil
 }
 
+// CaptureFrameAsJPEG は1フレームをキャプチャしてJPEGバイト配列として返す
+func (c *X11Capturer) CaptureFrameAsJPEG(ctx context.Context) ([]byte, error) {
+	// ffmpegを使って1フレームをJPEGとしてキャプチャ
+	cmd := exec.CommandContext(ctx,
+		"ffmpeg",
+		"-f", "x11grab",
+		"-video_size", fmt.Sprintf("%dx%d", c.width, c.height),
+		"-i", c.display,
+		"-vframes", "1",
+		"-f", "image2",
+		"-c:v", "mjpeg",
+		"-q:v", "2", // 高品質JPEG
+		"-",
+	)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("X11フレームキャプチャに失敗: %w (stderr: %s)", err, stderr.String())
+	}
+
+	return stdout.Bytes(), nil
+}
+
 // StartStream はX11画面キャプチャのストリームを開始する
 func (c *X11Capturer) StartStream(ctx context.Context, frameChan chan<- []byte, errorChan chan<- error) {
 	cmd := exec.CommandContext(ctx,

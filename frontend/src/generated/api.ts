@@ -110,6 +110,61 @@ export interface CamerasResponse {
 /**
  * 
  * @export
+ * @interface Config
+ */
+export interface Config {
+    /**
+     * タイムラプス有効/無効
+     * @type {boolean}
+     * @memberof Config
+     */
+    'enabled'?: boolean;
+    /**
+     * 撮影間隔（秒）
+     * @type {string}
+     * @memberof Config
+     */
+    'capture_interval'?: string;
+    /**
+     * 動画更新間隔
+     * @type {string}
+     * @memberof Config
+     */
+    'update_interval'?: string;
+    /**
+     * 出力フォーマット
+     * @type {string}
+     * @memberof Config
+     */
+    'output_format'?: string;
+    /**
+     * 動画品質 (1-5)
+     * @type {number}
+     * @memberof Config
+     */
+    'quality'?: number;
+    /**
+     * 
+     * @type {Resolution}
+     * @memberof Config
+     */
+    'resolution'?: Resolution;
+    /**
+     * 最大フレームバッファサイズ
+     * @type {number}
+     * @memberof Config
+     */
+    'max_frame_buffer'?: number;
+    /**
+     * 保持期間（日数）
+     * @type {number}
+     * @memberof Config
+     */
+    'retention_days'?: number;
+}
+/**
+ * 
+ * @export
  * @interface ErrorResponse
  */
 export interface ErrorResponse {
@@ -155,6 +210,25 @@ export type HealthResponseStatusEnum = typeof HealthResponseStatusEnum[keyof typ
 /**
  * 
  * @export
+ * @interface Resolution
+ */
+export interface Resolution {
+    /**
+     * 幅（ピクセル）
+     * @type {number}
+     * @memberof Resolution
+     */
+    'width': number;
+    /**
+     * 高さ（ピクセル）
+     * @type {number}
+     * @memberof Resolution
+     */
+    'height': number;
+}
+/**
+ * 
+ * @export
  * @interface ServerInfo
  */
 export interface ServerInfo {
@@ -178,32 +252,152 @@ export interface ServerInfo {
  */
 export interface StatusResponse {
     /**
-     * システムの動作状態
+     * タイムラプス機能有効/無効
+     * @type {boolean}
+     * @memberof StatusResponse
+     */
+    'enabled'?: boolean;
+    /**
+     * アクティブな映像ソース数
+     * @type {number}
+     * @memberof StatusResponse
+     */
+    'active_sources'?: number;
+    /**
+     * 総動画数
+     * @type {number}
+     * @memberof StatusResponse
+     */
+    'total_videos'?: number;
+    /**
+     * 使用ストレージ容量（バイト）
+     * @type {number}
+     * @memberof StatusResponse
+     */
+    'storage_used'?: number;
+    /**
+     * 現在録画中の動画ファイル名
      * @type {string}
      * @memberof StatusResponse
      */
-    'status': StatusResponseStatusEnum;
+    'current_video'?: string;
+    /**
+     * 現在のフレームバッファサイズ
+     * @type {number}
+     * @memberof StatusResponse
+     */
+    'frame_buffer_size'?: number;
+    /**
+     * 最後の動画更新時刻
+     * @type {string}
+     * @memberof StatusResponse
+     */
+    'last_update'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface SystemStatusResponse
+ */
+export interface SystemStatusResponse {
+    /**
+     * システムの動作状態
+     * @type {string}
+     * @memberof SystemStatusResponse
+     */
+    'status': SystemStatusResponseStatusEnum;
     /**
      * 
      * @type {ServerInfo}
-     * @memberof StatusResponse
+     * @memberof SystemStatusResponse
      */
     'server': ServerInfo;
     /**
      * 設定されているカメラの台数
      * @type {number}
-     * @memberof StatusResponse
+     * @memberof SystemStatusResponse
      */
     'cameras': number;
 }
 
-export const StatusResponseStatusEnum = {
+export const SystemStatusResponseStatusEnum = {
     Running: 'running',
     Starting: 'starting',
     Stopping: 'stopping'
 } as const;
 
-export type StatusResponseStatusEnum = typeof StatusResponseStatusEnum[keyof typeof StatusResponseStatusEnum];
+export type SystemStatusResponseStatusEnum = typeof SystemStatusResponseStatusEnum[keyof typeof SystemStatusResponseStatusEnum];
+
+/**
+ * 
+ * @export
+ * @interface Video
+ */
+export interface Video {
+    /**
+     * 作成日時
+     * @type {string}
+     * @memberof Video
+     */
+    'date': string;
+    /**
+     * ファイルパス
+     * @type {string}
+     * @memberof Video
+     */
+    'file_path': string;
+    /**
+     * ファイルサイズ（バイト）
+     * @type {number}
+     * @memberof Video
+     */
+    'file_size': number;
+    /**
+     * 動画時間
+     * @type {string}
+     * @memberof Video
+     */
+    'duration'?: string;
+    /**
+     * 総フレーム数
+     * @type {number}
+     * @memberof Video
+     */
+    'frame_count'?: number;
+    /**
+     * 録画開始時刻
+     * @type {string}
+     * @memberof Video
+     */
+    'start_time'?: string;
+    /**
+     * 録画終了時刻
+     * @type {string}
+     * @memberof Video
+     */
+    'end_time'?: string;
+    /**
+     * タイムラプス状態
+     * @type {string}
+     * @memberof Video
+     */
+    'status': VideoStatusEnum;
+    /**
+     * 結合された映像ソース数
+     * @type {number}
+     * @memberof Video
+     */
+    'source_count'?: number;
+}
+
+export const VideoStatusEnum = {
+    Recording: 'recording',
+    Completed: 'completed',
+    Error: 'error',
+    Paused: 'paused'
+} as const;
+
+export type VideoStatusEnum = typeof VideoStatusEnum[keyof typeof VideoStatusEnum];
 
 
 /**
@@ -598,7 +792,7 @@ export const StatusApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getStatus(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<StatusResponse>> {
+        async getStatus(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<SystemStatusResponse>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getStatus(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['StatusApi.getStatus']?.[localVarOperationServerIndex]?.url;
@@ -620,7 +814,7 @@ export const StatusApiFactory = function (configuration?: Configuration, basePat
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getStatus(options?: RawAxiosRequestConfig): AxiosPromise<StatusResponse> {
+        getStatus(options?: RawAxiosRequestConfig): AxiosPromise<SystemStatusResponse> {
             return localVarFp.getStatus(options).then((request) => request(axios, basePath));
         },
     };
@@ -642,6 +836,231 @@ export class StatusApi extends BaseAPI {
      */
     public getStatus(options?: RawAxiosRequestConfig) {
         return StatusApiFp(this.configuration).getStatus(options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
+ * TimelapseApi - axios parameter creator
+ * @export
+ */
+export const TimelapseApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * ファイルベースのタイムラプス設定を取得します
+         * @summary タイムラプス設定取得
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getTimelapseConfig: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/timelapse/config`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * タイムラプスシステム全体の状態を取得します
+         * @summary タイムラプスシステム状態
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getTimelapseStatus: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/timelapse/status`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 結合されたタイムラプス動画一覧を取得します
+         * @summary タイムラプス動画一覧取得
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getTimelapseVideos: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/timelapse/videos`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * TimelapseApi - functional programming interface
+ * @export
+ */
+export const TimelapseApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = TimelapseApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * ファイルベースのタイムラプス設定を取得します
+         * @summary タイムラプス設定取得
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getTimelapseConfig(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Config>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getTimelapseConfig(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TimelapseApi.getTimelapseConfig']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * タイムラプスシステム全体の状態を取得します
+         * @summary タイムラプスシステム状態
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getTimelapseStatus(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<StatusResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getTimelapseStatus(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TimelapseApi.getTimelapseStatus']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 結合されたタイムラプス動画一覧を取得します
+         * @summary タイムラプス動画一覧取得
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getTimelapseVideos(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<Video>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getTimelapseVideos(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TimelapseApi.getTimelapseVideos']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * TimelapseApi - factory interface
+ * @export
+ */
+export const TimelapseApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = TimelapseApiFp(configuration)
+    return {
+        /**
+         * ファイルベースのタイムラプス設定を取得します
+         * @summary タイムラプス設定取得
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getTimelapseConfig(options?: RawAxiosRequestConfig): AxiosPromise<Config> {
+            return localVarFp.getTimelapseConfig(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * タイムラプスシステム全体の状態を取得します
+         * @summary タイムラプスシステム状態
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getTimelapseStatus(options?: RawAxiosRequestConfig): AxiosPromise<StatusResponse> {
+            return localVarFp.getTimelapseStatus(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 結合されたタイムラプス動画一覧を取得します
+         * @summary タイムラプス動画一覧取得
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getTimelapseVideos(options?: RawAxiosRequestConfig): AxiosPromise<Array<Video>> {
+            return localVarFp.getTimelapseVideos(options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * TimelapseApi - object-oriented interface
+ * @export
+ * @class TimelapseApi
+ * @extends {BaseAPI}
+ */
+export class TimelapseApi extends BaseAPI {
+    /**
+     * ファイルベースのタイムラプス設定を取得します
+     * @summary タイムラプス設定取得
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TimelapseApi
+     */
+    public getTimelapseConfig(options?: RawAxiosRequestConfig) {
+        return TimelapseApiFp(this.configuration).getTimelapseConfig(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * タイムラプスシステム全体の状態を取得します
+     * @summary タイムラプスシステム状態
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TimelapseApi
+     */
+    public getTimelapseStatus(options?: RawAxiosRequestConfig) {
+        return TimelapseApiFp(this.configuration).getTimelapseStatus(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 結合されたタイムラプス動画一覧を取得します
+     * @summary タイムラプス動画一覧取得
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TimelapseApi
+     */
+    public getTimelapseVideos(options?: RawAxiosRequestConfig) {
+        return TimelapseApiFp(this.configuration).getTimelapseVideos(options).then((request) => request(this.axios, this.basePath));
     }
 }
 

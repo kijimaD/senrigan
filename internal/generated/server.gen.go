@@ -25,6 +25,15 @@ type ServerInterface interface {
 	// システム状態取得
 	// (GET /api/status)
 	GetStatus(c *gin.Context)
+	// タイムラプス設定取得
+	// (GET /api/timelapse/config)
+	GetTimelapseConfig(c *gin.Context)
+	// タイムラプスシステム状態
+	// (GET /api/timelapse/status)
+	GetTimelapseStatus(c *gin.Context)
+	// タイムラプス動画一覧取得
+	// (GET /api/timelapse/videos)
+	GetTimelapseVideos(c *gin.Context)
 	// ヘルスチェック
 	// (GET /health)
 	HealthCheck(c *gin.Context)
@@ -113,6 +122,45 @@ func (siw *ServerInterfaceWrapper) GetStatus(c *gin.Context) {
 	siw.Handler.GetStatus(c)
 }
 
+// GetTimelapseConfig operation middleware
+func (siw *ServerInterfaceWrapper) GetTimelapseConfig(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetTimelapseConfig(c)
+}
+
+// GetTimelapseStatus operation middleware
+func (siw *ServerInterfaceWrapper) GetTimelapseStatus(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetTimelapseStatus(c)
+}
+
+// GetTimelapseVideos operation middleware
+func (siw *ServerInterfaceWrapper) GetTimelapseVideos(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetTimelapseVideos(c)
+}
+
 // HealthCheck operation middleware
 func (siw *ServerInterfaceWrapper) HealthCheck(c *gin.Context) {
 
@@ -157,5 +205,8 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/api/cameras/:cameraId/stream", wrapper.GetCameraStream)
 	router.GET(options.BaseURL+"/api/cameras/:cameraId/ws", wrapper.GetCameraWebSocket)
 	router.GET(options.BaseURL+"/api/status", wrapper.GetStatus)
+	router.GET(options.BaseURL+"/api/timelapse/config", wrapper.GetTimelapseConfig)
+	router.GET(options.BaseURL+"/api/timelapse/status", wrapper.GetTimelapseStatus)
+	router.GET(options.BaseURL+"/api/timelapse/videos", wrapper.GetTimelapseVideos)
 	router.GET(options.BaseURL+"/health", wrapper.HealthCheck)
 }

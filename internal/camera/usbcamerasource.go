@@ -195,3 +195,16 @@ func (s *USBCameraSource) forwardFrames() {
 		}
 	}
 }
+
+// CaptureFrameForTimelapse はタイムラプス用に1フレームをキャプチャする
+func (s *USBCameraSource) CaptureFrameForTimelapse(ctx context.Context) ([]byte, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.status != StatusActive {
+		return nil, fmt.Errorf("カメラが非アクティブです")
+	}
+
+	// V4L2Capturerを使って1フレームをキャプチャ
+	return s.capturer.CaptureFrameAsJPEG(ctx)
+}

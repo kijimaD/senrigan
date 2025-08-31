@@ -26,6 +26,9 @@ type VideoSource interface {
 	GetFrameChannel() <-chan []byte
 	GetErrorChannel() <-chan error
 
+	// タイムラプス用フレーム取得
+	CaptureFrameForTimelapse(ctx context.Context) ([]byte, error)
+
 	// メタデータ
 	GetInfo() VideoSourceInfo
 	GetCapabilities() VideoCapabilities

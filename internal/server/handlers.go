@@ -7,14 +7,16 @@ import (
 	"senrigan/internal/camera"
 	"senrigan/internal/config"
 	"senrigan/internal/generated"
+	"senrigan/internal/timelapse"
 
 	"github.com/gin-gonic/gin"
 )
 
 // SenriganHandler は生成されたServerInterfaceを実装する
 type SenriganHandler struct {
-	config        *config.Config
-	cameraManager camera.Manager
+	config           *config.Config
+	cameraManager    camera.Manager
+	timelapseManager timelapse.Manager
 }
 
 // HealthCheck はヘルスチェックエンドポイントの実装
@@ -28,7 +30,7 @@ func (h *SenriganHandler) HealthCheck(c *gin.Context) {
 
 // GetStatus はシステム状態取得エンドポイントの実装
 func (h *SenriganHandler) GetStatus(c *gin.Context) {
-	response := generated.StatusResponse{
+	response := generated.SystemStatusResponse{
 		Status: generated.Running,
 		Server: generated.ServerInfo{
 			Host: h.config.Server.Host,
@@ -139,13 +141,13 @@ func (h *SenriganHandler) GetCameraWebSocket(c *gin.Context, cameraID string) {
 func convertCameraStatus(status camera.Status) generated.CameraInfoStatus {
 	switch status {
 	case camera.StatusActive:
-		return generated.Active
+		return generated.CameraInfoStatusActive
 	case camera.StatusInactive:
-		return generated.Inactive
+		return generated.CameraInfoStatusInactive
 	case camera.StatusError:
-		return generated.Error
+		return generated.CameraInfoStatusError
 	default:
-		return generated.Inactive
+		return generated.CameraInfoStatusInactive
 	}
 }
 
@@ -221,4 +223,110 @@ func (h *SenriganHandler) streamMJPEG(c *gin.Context, cameraID string) {
 			flusher.Flush()
 		}
 	}
+}
+
+// GetTimelapseVideos はタイムラプス動画一覧取得エンドポイントの実装
+func (h *SenriganHandler) GetTimelapseVideos(c *gin.Context) {
+	videos, err := h.timelapseManager.GetTimelapseVideos()
+	if err != nil {
+		errMsg := err.Error()
+		c.JSON(http.StatusInternalServerError, generated.ErrorResponse{
+			Error:   "internal_server_error",
+			Message: "タイムラプス動画取得に失敗しました",
+			Details: &errMsg,
+		})
+		return
+	}
+
+	// timelapse.Videoからgenerated.Videoに変換
+	// 事前にスライスの容量を確保（prealloc）
+	response := make([]generated.Video, 0, len(videos))
+	for _, video := range videos {
+		generatedVideo := generated.Video{
+			Date:        video.Date,
+			FilePath:    video.FilePath,
+			FileSize:    video.FileSize,
+			Status:      generated.VideoStatus(video.Status),
+			SourceCount: &video.SourceCount,
+		}
+
+		if video.Duration > 0 {
+			duration := video.Duration.String()
+			generatedVideo.Duration = &duration
+		}
+		if video.FrameCount > 0 {
+			generatedVideo.FrameCount = &video.FrameCount
+		}
+		if !video.StartTime.IsZero() {
+			generatedVideo.StartTime = &video.StartTime
+		}
+		if !video.EndTime.IsZero() {
+			generatedVideo.EndTime = &video.EndTime
+		}
+
+		response = append(response, generatedVideo)
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// GetTimelapseConfig はタイムラプス設定取得エンドポイントの実装
+func (h *SenriganHandler) GetTimelapseConfig(c *gin.Context) {
+	config := h.timelapseManager.GetConfig()
+
+	response := generated.Config{
+		Enabled:        &config.Enabled,
+		OutputFormat:   &config.OutputFormat,
+		Quality:        &config.Quality,
+		RetentionDays:  &config.RetentionDays,
+		MaxFrameBuffer: &config.MaxFrameBuffer,
+	}
+
+	if config.CaptureInterval > 0 {
+		captureInterval := config.CaptureInterval.String()
+		response.CaptureInterval = &captureInterval
+	}
+	if config.UpdateInterval > 0 {
+		updateInterval := config.UpdateInterval.String()
+		response.UpdateInterval = &updateInterval
+	}
+	if config.Resolution.Width > 0 && config.Resolution.Height > 0 {
+		response.Resolution = &generated.Resolution{
+			Width:  config.Resolution.Width,
+			Height: config.Resolution.Height,
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// GetTimelapseStatus はタイムラプスシステム状態取得エンドポイントの実装
+func (h *SenriganHandler) GetTimelapseStatus(c *gin.Context) {
+	status, err := h.timelapseManager.GetTimelapseStatus()
+	if err != nil {
+		errMsg := err.Error()
+		c.JSON(http.StatusInternalServerError, generated.ErrorResponse{
+			Error:   "internal_server_error",
+			Message: "タイムラプスシステム状態取得に失敗しました",
+			Details: &errMsg,
+		})
+		return
+	}
+
+	response := generated.StatusResponse{
+		Enabled:         &status.Enabled,
+		ActiveSources:   &status.ActiveSources,
+		TotalVideos:     &status.TotalVideos,
+		StorageUsed:     &status.StorageUsed,
+		FrameBufferSize: &status.FrameBufferSize,
+	}
+
+	if status.CurrentVideo != "" {
+		response.CurrentVideo = &status.CurrentVideo
+	}
+	if !status.LastUpdate.IsZero() {
+		response.LastUpdate = &status.LastUpdate
+	}
+
+	c.JSON(http.StatusOK, response)
 }

@@ -15,6 +15,263 @@
 ### フェーズ3: 動画生成
 - 一定期間ごとにタイムラプス画像を使って、タイムラプス動画を生成する
 
+---
+
+# タイムラプス機能詳細設計 (フェーズ2拡張)
+
+## 拡張仕様
+
+### 基本機能
+- **撮影間隔**: 2秒毎に1フレーム
+- **動画更新**: 1時間毎に動画を延長
+- **ファイル分割**: 日毎に新しい動画ファイル作成
+- **リアルタイム視聴**: 作成途中の動画も再生可能
+- **対象**: 全ての映像ソース（USBカメラ、X11画面キャプチャ）
+- **フレーム結合**: 複数の映像ソースを1つの画面に結合してタイムラプス動画を作成
+
+### 技術仕様
+- **フレームバッファ**: メモリ上に最大1時間分（1800フレーム）保持
+- **動画フォーマット**: MP4（H.264 + AAC）
+- **解像度**: ソース解像度に応じて可変（最大1920x1080）
+- **品質**: 設定可能（1-5段階）
+
+## アーキテクチャ拡張
+
+### 新規コンポーネント
+
+#### 1. TimelapseManager
+```go
+type TimelapseManager interface {
+    // システム制御
+    Start(ctx context.Context) error
+    Stop(ctx context.Context) error
+    
+    // データ取得
+    GetTimelapseVideos() ([]TimelapseVideo, error)
+    GetTimelapseStatus() (TimelapseStatus, error)
+    
+    // 設定管理（ファイルベース）
+    LoadConfig() (TimelapseConfig, error)
+    ReloadConfig() error
+}
+```
+
+#### 2. TimelapseCapture (統合キャプチャ)
+```go
+type TimelapseCapture struct {
+    frameBuffer   []CombinedFrame // 結合フレーム保存
+    outputDir     string          // 動画出力先
+    currentVideo  string          // 現在の動画ファイル
+    lastUpdate    time.Time       // 最後の動画更新時刻
+    config        TimelapseConfig // 設定
+    videoSources  []VideoSource   // 全ての映像ソース
+    
+    // 制御用
+    stopCh        chan struct{}
+    wg            sync.WaitGroup
+    mu            sync.RWMutex
+}
+```
+
+#### 3. データ構造
+```go
+// 単一ソースフレームデータ
+type SourceFrame struct {
+    SourceID  string
+    Timestamp time.Time
+    Data      []byte  // JPEG画像データ
+    Size      int     // データサイズ
+}
+
+// 結合フレームデータ
+type CombinedFrame struct {
+    Timestamp    time.Time
+    SourceFrames map[string]SourceFrame // ソースID毎のフレーム
+    ComposedData []byte                 // 結合後のJPEG画像データ
+    Size         int                    // データサイズ
+}
+
+// タイムラプス設定
+type TimelapseConfig struct {
+    Enabled          bool          // 有効/無効
+    CaptureInterval  time.Duration // 撮影間隔 (デフォルト: 2秒)
+    UpdateInterval   time.Duration // 動画更新間隔 (デフォルト: 1時間)
+    OutputFormat     string        // 出力フォーマット ("mp4")
+    Quality          int           // 動画品質 (1-5)
+    Resolution       Resolution    // 出力解像度
+    MaxFrameBuffer   int           // 最大バッファサイズ
+    RetentionDays    int           // 保持期間（日数）
+}
+
+// タイムラプス動画情報
+type TimelapseVideo struct {
+    Date        time.Time         // 作成日
+    FilePath    string            // ファイルパス
+    FileSize    int64             // ファイルサイズ
+    Duration    time.Duration     // 動画長
+    FrameCount  int               // 総フレーム数
+    StartTime   time.Time         // 録画開始時刻
+    EndTime     time.Time         // 録画終了時刻
+    Status      TimelapseStatus   // ステータス
+    SourceCount int               // 結合された映像ソース数
+}
+
+// タイムラプスステータス
+type TimelapseStatus string
+
+const (
+    TimelapseStatusRecording  TimelapseStatus = "recording"  // 録画中
+    TimelapseStatusCompleted  TimelapseStatus = "completed"  // 完了
+    TimelapseStatusError      TimelapseStatus = "error"      // エラー
+    TimelapseStatusPaused     TimelapseStatus = "paused"     // 一時停止
+)
+```
+
+## 動作フロー
+
+### 1. フレーム撮影フロー
+```
+[VideoSource] --2秒毎--> [TimelapseCapture] 
+                               ↓
+                    [Frame Buffer (メモリ)]
+                               ↓
+                      (1時間毎にトリガー)
+                               ↓
+                    [Video Generator (ffmpeg)]
+                               ↓
+                      [MP4ファイル更新/作成]
+```
+
+### 2. 動画生成フロー
+1. **フレーム収集**: Frame Bufferから新フレーム取得
+2. **一時ファイル作成**: 新フレームを画像ファイル群として保存
+3. **動画生成/更新**:
+   - 既存動画: ffmpegで新フレーム追加
+   - 新しい日: 新規動画ファイル作成
+4. **クリーンアップ**: 一時ファイル・バッファクリア
+
+### 3. 日次ローテーション
+- 00:00:00に新動画ファイル開始
+- 前日動画は完了ステータスに変更
+- ファイル名: `{sourceName}_YYYY-MM-DD.mp4`
+
+## ファイル構造
+
+```
+/data/timelapse/
+├── YYYY-MM-DD/
+│   ├── camera_123456_YYYY-MM-DD.mp4
+│   ├── screen_capture_YYYY-MM-DD.mp4
+│   └── temp/
+│       ├── camera_123456/
+│       └── screen_capture/
+├── config/
+│   ├── timelapse_config.json
+│   └── source_configs/
+└── metadata/
+    ├── videos.db (SQLite)
+    └── logs/
+```
+
+## API設計
+
+### REST API エンドポイント
+```
+GET    /api/timelapse/videos    # タイムラプス動画一覧
+GET    /api/timelapse/config    # 設定取得（ファイルベース）
+GET    /api/timelapse/status    # システムステータス
+DELETE /api/timelapse/videos/{videoId} # 動画削除
+```
+
+### WebSocket API
+```
+/ws/timelapse/status    # 進行状況のリアルタイム配信
+```
+
+## 実装ステップ
+
+### Phase 1: 基本構造 (1-2日)
+1. `TimelapseManager`インターフェース定義
+2. `TimelapseCapture`実装
+3. フレーム撮影・バッファリング機能
+
+### Phase 2: 動画生成 (2-3日)
+1. ffmpeg統合（動画作成・延長）
+2. スケジューリング（1時間毎更新・日次分割）
+3. バックグラウンド処理
+
+### Phase 3: API・UI (2-3日)
+1. REST API実装
+2. フロントエンド（設定画面・プレイヤー）
+3. リアルタイム進行状況表示
+
+### Phase 4: 最適化 (1-2日)
+1. ストレージ管理（古い動画削除）
+2. パフォーマンス最適化
+3. 監視・ログ機能強化
+
+## 技術的考慮事項
+
+### メモリ管理
+- フレームバッファサイズ制限（デフォルト1800フレーム）
+- 定期的なクリーンアップ
+- メモリ使用量監視
+
+### 並行処理
+- 映像ソース毎の独立goroutine
+- 動画生成の非同期実行
+- 競合状態の回避
+
+### エラーハンドリング
+- ffmpegプロセス失敗時の再試行
+- ディスク容量不足の検知
+- 映像ソース停止時の処理
+
+### パフォーマンス目標
+- **メモリ使用量**: 映像ソース1つあたり最大100MB
+- **CPU使用率**: 動画生成時除き5%以下
+- **ディスク使用量**: 1日あたり約500MB/映像ソース
+- **レスポンス時間**: API応答200ms以下
+
+## 設定例
+
+```json
+{
+  "global": {
+    "output_directory": "/data/timelapse",
+    "temp_directory": "/tmp/senrigan-timelapse",
+    "retention_days": 30,
+    "max_concurrent_processing": 2
+  },
+  "default_config": {
+    "capture_interval": "2s",
+    "update_interval": "1h",
+    "output_format": "mp4",
+    "quality": 3,
+    "resolution": {
+      "width": 1920,
+      "height": 1080
+    },
+    "max_frame_buffer": 1800
+  },
+  "source_configs": {
+    "camera_123456": {
+      "enabled": true,
+      "capture_interval": "2s",
+      "quality": 4
+    },
+    "screen_capture": {
+      "enabled": true,
+      "capture_interval": "5s",
+      "resolution": {
+        "width": 1280,
+        "height": 720
+      }
+    }
+  }
+}
+```
+
 ## アーキテクチャ設計
 
 ### 全体方針
