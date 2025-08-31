@@ -188,10 +188,10 @@ func NewX11ScreenSourceFromConfig(config SourceConfig) (VideoSource, error) {
 		fps = config.Settings.FrameRate
 	}
 
-	// VideoSourceInfo を設定
+	// VideoSourceInfo を設定（ディスプレイ番号を名前に含める）
 	info := VideoSourceInfo{
 		ID:          generateCameraID(),
-		Name:        "画面キャプチャ",
+		Name:        "画面キャプチャ :0", // ディスプレイ番号を含める
 		Type:        SourceTypeX11Screen,
 		Driver:      "x11grab",
 		Description: "X11 Screen Capture",

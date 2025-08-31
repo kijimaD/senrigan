@@ -115,8 +115,12 @@ func (vg *VideoGenerator) appendToVideo(videoPath string, imageFiles []string, c
 		return fmt.Errorf("追加する画像ファイルがありません")
 	}
 
-	// 追加用の一時動画を作成
-	tempVideoPath := videoPath + ".temp"
+	// 追加用の一時動画を作成（絶対パスに変換）
+	absVideoPath, err := filepath.Abs(videoPath)
+	if err != nil {
+		return fmt.Errorf("ビデオパスの絶対パス化に失敗: %w", err)
+	}
+	tempVideoPath := absVideoPath + ".temp.mp4"
 	if err := vg.createNewVideo(tempVideoPath, imageFiles, config); err != nil {
 		return fmt.Errorf("一時動画の作成に失敗: %w", err)
 	}
@@ -125,8 +129,8 @@ func (vg *VideoGenerator) appendToVideo(videoPath string, imageFiles []string, c
 	}()
 
 	// 動画リストファイルを作成
-	listFile := filepath.Join(filepath.Dir(videoPath), "concat_list.txt")
-	listContent := fmt.Sprintf("file '%s'\nfile '%s'\n", videoPath, tempVideoPath)
+	listFile := filepath.Join(filepath.Dir(absVideoPath), "concat_list.txt")
+	listContent := fmt.Sprintf("file '%s'\nfile '%s'\n", absVideoPath, tempVideoPath)
 	if err := os.WriteFile(listFile, []byte(listContent), 0644); err != nil {
 		return fmt.Errorf("結合リストの作成に失敗: %w", err)
 	}
@@ -135,7 +139,7 @@ func (vg *VideoGenerator) appendToVideo(videoPath string, imageFiles []string, c
 	}()
 
 	// 結合した動画を出力
-	outputPath := videoPath + ".new"
+	outputPath := videoPath + ".new.mp4"
 	cmd := exec.Command("ffmpeg",
 		"-f", "concat",
 		"-safe", "0",

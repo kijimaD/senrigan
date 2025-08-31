@@ -7,6 +7,7 @@ import (
 	"image"
 	"image/jpeg"
 	"log"
+	"sort"
 	"time"
 
 	"senrigan/internal/camera"
@@ -32,6 +33,7 @@ func NewFrameComposer(outputWidth, outputHeight, quality int) *FrameComposer {
 func (fc *FrameComposer) ComposeFrames(ctx context.Context, videoSources []camera.VideoSource) (CombinedFrame, error) {
 	timestamp := time.Now()
 	sourceFrames := make(map[string]SourceFrame)
+	sourceTypeMap := make(map[string]camera.VideoSourceType) // タイプ情報を保持
 
 	// 各映像ソースからフレームを取得
 	for _, source := range videoSources {
@@ -40,6 +42,8 @@ func (fc *FrameComposer) ComposeFrames(ctx context.Context, videoSources []camer
 		}
 
 		info := source.GetInfo()
+		sourceTypeMap[info.ID] = info.Type // タイプ情報を保存
+
 		frameData, err := source.CaptureFrameForTimelapse(ctx)
 		if err != nil {
 			log.Printf("映像ソース %s のフレーム取得に失敗: %v", info.ID, err)
@@ -61,7 +65,7 @@ func (fc *FrameComposer) ComposeFrames(ctx context.Context, videoSources []camer
 	}
 
 	// フレームを結合
-	composedData, err := fc.combineFrames(sourceFrames)
+	composedData, err := fc.combineFrames(sourceFrames, sourceTypeMap, videoSources)
 	if err != nil {
 		return CombinedFrame{}, fmt.Errorf("フレーム結合に失敗: %w", err)
 	}
@@ -75,7 +79,7 @@ func (fc *FrameComposer) ComposeFrames(ctx context.Context, videoSources []camer
 }
 
 // combineFrames は複数のJPEGフレームを1つの画像に結合する
-func (fc *FrameComposer) combineFrames(sourceFrames map[string]SourceFrame) ([]byte, error) {
+func (fc *FrameComposer) combineFrames(sourceFrames map[string]SourceFrame, _ map[string]camera.VideoSourceType, videoSources []camera.VideoSource) ([]byte, error) {
 	if len(sourceFrames) == 0 {
 		return nil, fmt.Errorf("結合するフレームがありません")
 	}
@@ -86,9 +90,43 @@ func (fc *FrameComposer) combineFrames(sourceFrames map[string]SourceFrame) ([]b
 	// 出力画像を作成
 	outputImg := image.NewRGBA(image.Rect(0, 0, fc.outputWidth, fc.outputHeight))
 
-	// 各フレームを配置
+	// カメラ名でソートしてカメラ位置を固定（シンプルな名前順）
+	type SourceInfo struct {
+		ID   string
+		Name string
+	}
+
+	sourceInfos := make([]SourceInfo, 0, len(sourceFrames))
+	for sourceID := range sourceFrames {
+		// sourceTypeMapから名前を取得するためにVideoSourceを探す
+		name := sourceID // デフォルトはID
+		for _, source := range videoSources {
+			if source.GetInfo().ID == sourceID {
+				name = source.GetInfo().Name
+				break
+			}
+		}
+		sourceInfos = append(sourceInfos, SourceInfo{ID: sourceID, Name: name})
+	}
+
+	// 名前でソート、同じ名前の場合はIDでソート
+	sort.SliceStable(sourceInfos, func(i, j int) bool {
+		if sourceInfos[i].Name == sourceInfos[j].Name {
+			return sourceInfos[i].ID < sourceInfos[j].ID
+		}
+		return sourceInfos[i].Name < sourceInfos[j].Name
+	})
+
+	// ソートされた順序でIDリストを作成
+	sortedSourceIDs := make([]string, len(sourceInfos))
+	for i, info := range sourceInfos {
+		sortedSourceIDs[i] = info.ID
+	}
+
+	// 各フレームをソート順で配置
 	frameIndex := 0
-	for _, sourceFrame := range sourceFrames {
+	for _, sourceID := range sortedSourceIDs {
+		sourceFrame := sourceFrames[sourceID]
 		if len(sourceFrame.Data) == 0 {
 			continue
 		}

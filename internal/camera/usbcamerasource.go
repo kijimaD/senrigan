@@ -21,6 +21,10 @@ type USBCameraSource struct {
 	// ストリーミング用の内部チャンネル
 	internalFrameChan chan []byte
 	internalErrorChan chan error
+
+	// 最新フレーム保持用（タイムラプス用）
+	latestFrame []byte
+	latestMutex sync.RWMutex
 }
 
 // NewDirectUSBCameraSource は新しいUSBCameraSourceを作成する（Service不使用）
@@ -143,6 +147,12 @@ func (s *USBCameraSource) forwardFrames() {
 				return
 			}
 
+			// 最新フレームを保存（タイムラプス用）
+			s.latestMutex.Lock()
+			s.latestFrame = make([]byte, len(frame))
+			copy(s.latestFrame, frame)
+			s.latestMutex.Unlock()
+
 			// フレームを転送
 			select {
 			case s.frameChan <- frame:
@@ -197,7 +207,7 @@ func (s *USBCameraSource) forwardFrames() {
 }
 
 // CaptureFrameForTimelapse はタイムラプス用に1フレームをキャプチャする
-func (s *USBCameraSource) CaptureFrameForTimelapse(ctx context.Context) ([]byte, error) {
+func (s *USBCameraSource) CaptureFrameForTimelapse(_ context.Context) ([]byte, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -205,6 +215,16 @@ func (s *USBCameraSource) CaptureFrameForTimelapse(ctx context.Context) ([]byte,
 		return nil, fmt.Errorf("カメラが非アクティブです")
 	}
 
-	// V4L2Capturerを使って1フレームをキャプチャ
-	return s.capturer.CaptureFrameAsJPEG(ctx)
+	// ストリーミング中の最新フレームを取得
+	s.latestMutex.RLock()
+	defer s.latestMutex.RUnlock()
+
+	if s.latestFrame == nil {
+		return nil, fmt.Errorf("フレームがまだ取得されていません")
+	}
+
+	// フレームのコピーを返す
+	frame := make([]byte, len(s.latestFrame))
+	copy(frame, s.latestFrame)
+	return frame, nil
 }

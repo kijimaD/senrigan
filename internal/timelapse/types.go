@@ -67,14 +67,14 @@ func DefaultConfig() Config {
 	return Config{
 		Enabled:         true,
 		CaptureInterval: 2 * time.Second,
-		UpdateInterval:  1 * time.Hour,
+		UpdateInterval:  1 * time.Minute,
 		OutputFormat:    "mp4",
 		Quality:         3,
 		Resolution: Resolution{
 			Width:  1920,
 			Height: 1080,
 		},
-		MaxFrameBuffer: 1800, // 1時間分（2秒間隔）
+		MaxFrameBuffer: 60, // 1分間分（2秒間隔）
 		RetentionDays:  30,
 	}
 }

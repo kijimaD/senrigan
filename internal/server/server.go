@@ -58,7 +58,7 @@ func NewGin(cfg *config.Config) *GinServer {
 	cameraManager := camera.NewDefaultCameraManager(discovery)
 
 	// タイムラプスマネージャーを初期化
-	timelapseOutputDir := "/data/timelapse" // TODO: 設定ファイルから読み込み
+	timelapseOutputDir := "./data/timelapse" // ローカルディレクトリに変更
 	timelapseManager := timelapse.NewDefaultManager(cameraManager, timelapseOutputDir, cfg.Timelapse)
 
 	return &GinServer{
@@ -171,10 +171,13 @@ func (s *GinServer) setupRoutes() {
 		c.FileFromFS("favicon.ico", GetStaticFS())
 	})
 
+	// タイムラプス動画ファイルを配信
+	s.router.Static("/api/timelapse/video", "./data/timelapse")
+
 	// SPAのためのフォールバック（APIルート以外はindex.htmlを返す）
 	s.router.NoRoute(func(c *gin.Context) {
-		// APIルートの場合は404を返す
-		if strings.HasPrefix(c.Request.URL.Path, "/api/") || strings.HasPrefix(c.Request.URL.Path, "/health") {
+		// APIルートの場合は404を返す（ただしタイムラプス動画配信は除く）
+		if (strings.HasPrefix(c.Request.URL.Path, "/api/") && !strings.HasPrefix(c.Request.URL.Path, "/api/timelapse/video/")) || strings.HasPrefix(c.Request.URL.Path, "/health") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
 			return
 		}

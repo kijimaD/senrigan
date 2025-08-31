@@ -67,18 +67,29 @@ func (tc *Capture) Start(ctx context.Context) error {
 }
 
 // Stop はタイムラプスキャプチャを停止する
-func (tc *Capture) Stop(_ context.Context) error {
+func (tc *Capture) Stop(ctx context.Context) error {
 	tc.mu.Lock()
 	defer tc.mu.Unlock()
 
 	close(tc.stopCh)
-	tc.wg.Wait()
 
-	// 残ったフレームで動画を更新
-	if len(tc.frameBuffer) > 0 {
-		if err := tc.updateVideo(); err != nil {
-			log.Printf("最終動画更新に失敗: %v", err)
+	// ワーカーゴルーチンの終了を短いタイムアウトで待機
+	done := make(chan struct{})
+	go func() {
+		tc.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// 正常にワーカーが終了した場合のみログを記録（最終動画更新はスキップ）
+		if len(tc.frameBuffer) > 0 {
+			log.Printf("シャットダウン時に %d フレームのバッファが残りました。", len(tc.frameBuffer))
 		}
+	case <-time.After(3 * time.Second):
+		log.Printf("ワーカーゴルーチンの停止がタイムアウトしました。強制終了します。")
+	case <-ctx.Done():
+		log.Printf("コンテキストがキャンセルされました。停止処理を中断します。")
 	}
 
 	log.Println("統合タイムラプスキャプチャを停止")

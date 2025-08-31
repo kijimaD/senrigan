@@ -178,17 +178,17 @@ func TestServerAddress(t *testing.T) {
 func TestEnvironmentVariables(t *testing.T) {
 	// テスト用の環境変数を設定
 	originalHost := os.Getenv("SERVER_HOST")
-	originalPort := os.Getenv("SERVER_PORT")
+	originalPort := os.Getenv("PORT")
 
 	defer func() {
 		// テスト後に環境変数を復元
 		_ = os.Setenv("SERVER_HOST", originalHost)
-		_ = os.Setenv("SERVER_PORT", originalPort)
+		_ = os.Setenv("PORT", originalPort)
 	}()
 
 	// 環境変数を設定
 	_ = os.Setenv("SERVER_HOST", "test.example.com")
-	_ = os.Setenv("SERVER_PORT", "9999")
+	_ = os.Setenv("PORT", "9999")
 
 	cfg, err := Load()
 	if err != nil {
