@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { buildStreamUrl } from "../config/api";
 
 interface CameraStreamProps {
@@ -16,42 +16,138 @@ export function CameraStream({
 }: CameraStreamProps) {
   const imgRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const watchdogIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastLoadTimeRef = useRef<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
-  useEffect(() => {
+  const maxReconnectAttempts = 10;
+  const watchdogInterval = 5000; // 5秒ごとに生存確認
+  const maxIdleTime = 15000; // 15秒以上フレームが来ない場合は再接続
+
+  // クリーンアップ関数
+  const cleanup = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    if (watchdogIntervalRef.current) {
+      clearInterval(watchdogIntervalRef.current);
+      watchdogIntervalRef.current = null;
+    }
+  }, []);
+
+  // 再接続を試行する関数
+  const attemptReconnect = useCallback(() => {
+    if (reconnectAttempts >= maxReconnectAttempts) {
+      console.error(`カメラ ${cameraId} の最大再接続試行回数を超過しました`);
+      setHasError(true);
+      setIsReconnecting(false);
+      return;
+    }
+
+    const backoffDelay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000); // 指数バックオフ、最大30秒
+    console.log(
+      `カメラ ${cameraId} の再接続を ${backoffDelay}ms 後に試行します (試行 ${reconnectAttempts + 1}/${maxReconnectAttempts})`,
+    );
+
+    setIsReconnecting(true);
+    setReconnectAttempts((prev) => prev + 1);
+
+    reconnectTimeoutRef.current = setTimeout(() => {
+      if (!imgRef.current) return;
+
+      const img = imgRef.current;
+      const streamUrl = buildStreamUrl(cameraId);
+
+      // キャッシュバスターを追加して強制的に再読み込み
+      const separator = streamUrl.includes("?") ? "&" : "?";
+      img.src = `${streamUrl}${separator}t=${Date.now()}`;
+    }, backoffDelay);
+  }, [cameraId, reconnectAttempts, maxReconnectAttempts]);
+
+  // ウォッチドッグタイマー：定期的に生存確認
+  const startWatchdog = useCallback(() => {
+    if (watchdogIntervalRef.current) {
+      clearInterval(watchdogIntervalRef.current);
+    }
+
+    watchdogIntervalRef.current = setInterval(() => {
+      const now = Date.now();
+      const timeSinceLastLoad = now - lastLoadTimeRef.current;
+
+      if (timeSinceLastLoad > maxIdleTime && !isReconnecting && !hasError) {
+        console.warn(
+          `カメラ ${cameraId} が ${timeSinceLastLoad}ms 間無応答です。再接続を開始します。`,
+        );
+        attemptReconnect();
+      }
+    }, watchdogInterval);
+  }, [
+    cameraId,
+    isReconnecting,
+    hasError,
+    attemptReconnect,
+    maxIdleTime,
+    watchdogInterval,
+  ]);
+
+  // ストリームを初期化
+  const initializeStream = useCallback(() => {
     if (!imgRef.current) return;
 
     const img = imgRef.current;
-
-    // 共通設定を使用してストリームURLを構築
     const streamUrl = buildStreamUrl(cameraId);
 
-    // MJPEGストリームを直接img要素のsrcに設定
-    img.src = streamUrl;
-
     const handleLoad = () => {
+      lastLoadTimeRef.current = Date.now();
       setIsLoading(false);
       setHasError(false);
+      setIsReconnecting(false);
+      setReconnectAttempts(0);
+
+      // ウォッチドッグタイマーを開始
+      startWatchdog();
     };
 
     const handleError = () => {
       setIsLoading(false);
-      setHasError(true);
       console.error(`カメラストリームの読み込みに失敗: ${cameraId}`);
+
+      // 既に再接続中でなければ再接続を試行
+      if (!isReconnecting) {
+        attemptReconnect();
+      }
     };
 
     img.addEventListener("load", handleLoad);
     img.addEventListener("error", handleError);
 
+    // 初回ロード
+    img.src = streamUrl;
+    lastLoadTimeRef.current = Date.now();
+
     return () => {
-      // クリーンアップ: ストリームを停止
       img.removeEventListener("load", handleLoad);
       img.removeEventListener("error", handleError);
       img.src = "";
     };
-  }, [cameraId]);
+  }, [cameraId, isReconnecting, attemptReconnect, startWatchdog]);
+
+  useEffect(() => {
+    const cleanupStream = initializeStream();
+
+    return () => {
+      cleanup();
+      if (cleanupStream) {
+        cleanupStream();
+      }
+    };
+  }, [cameraId, initializeStream, cleanup]);
 
   // フルスクリーンのトグル
   const toggleFullscreen = async () => {
@@ -95,7 +191,7 @@ export function CameraStream({
         overflow: "hidden",
       }}
     >
-      {isLoading && (
+      {(isLoading || isReconnecting) && (
         <div
           style={{
             position: "absolute",
@@ -108,7 +204,9 @@ export function CameraStream({
           }}
         >
           <div style={{ marginBottom: "10px" }}>
-            {cameraName} を読み込み中...
+            {isReconnecting
+              ? `${cameraName} に再接続中... (${reconnectAttempts}/${maxReconnectAttempts})`
+              : `${cameraName} を読み込み中...`}
           </div>
           <div
             style={{
