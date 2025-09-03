@@ -1,4 +1,6 @@
 bin
 oas/output
 frontend/node_modules
-internal/server/dist
+internal/server/dist/*
+!internal/server/dist/.keep
+!internal/server/dist/.gitignore

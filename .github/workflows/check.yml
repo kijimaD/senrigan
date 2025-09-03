@@ -13,12 +13,6 @@ jobs:
 
       - uses: actions/setup-go@v5
 
-      # embedするとき中身がないと失敗する
-      - name: make embed directory
-        run: |
-          mkdir -p internal/server/dist
-          touch internal/server/dist/dummy
-
       - name: build
         run: "go build ."
 
