@@ -7,7 +7,7 @@ info:
     name: Senrigan Team
 
 servers:
-  - url: http://localhost:8080
+  - url: http://localhost:8009
     description: 開発サーバー
 
 paths:
@@ -246,7 +246,7 @@ components:
           description: サーバーのリッスンポート
           minimum: 1
           maximum: 65535
-          example: 8080
+          example: 8009
     
     CamerasResponse:
       type: object

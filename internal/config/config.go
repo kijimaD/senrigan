@@ -55,7 +55,7 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		Server: ServerConfig{
 			Host:         getEnvOrDefault("SERVER_HOST", "0.0.0.0"),
-			Port:         getEnvAsIntOrDefault("PORT", 8080),
+			Port:         getEnvAsIntOrDefault("PORT", 8009),
 			ReadTimeout:  10 * time.Second,
 			WriteTimeout: 0, // ストリーミング用にタイムアウト無効化
 		},

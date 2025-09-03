@@ -42,11 +42,12 @@ frontend-dev: ## フロントエンド開発サーバを起動（ポート3000�
 	cd frontend && npm run dev
 
 .PHONY: production
-production: frontend-build build ## 本番用ビルド（フロントエンド + バックエンド統合）
+production: frontend-install frontend-build build ## 本番用ビルド（フロントエンド + バックエンド統合）
 	@echo "本番用ビルドが完了しました！"
 	@echo "バイナリ: ./bin/senrigan"
 	@echo "起動: ./bin/senrigan"
-	@echo "アクセス: http://localhost:8080"
+	@echo "アクセス: http://localhost:8009"
+	./bin/senrigan
 
 # ================
 

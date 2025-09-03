@@ -27,7 +27,7 @@ describe("MainPage", () => {
       status: "running" as const,
       server: {
         host: "0.0.0.0",
-        port: 8080,
+        port: 8009,
       },
       cameras: 1,
       timestamp: "2025-08-29T00:00:00Z",
@@ -35,7 +35,7 @@ describe("MainPage", () => {
 
     // 型が正しく定義されているか確認
     expect(mockStatus.status).toBe("running");
-    expect(mockStatus.server.port).toBe(8080);
+    expect(mockStatus.server.port).toBe(8009);
     expect(mockStatus.cameras).toBe(1);
   });
 

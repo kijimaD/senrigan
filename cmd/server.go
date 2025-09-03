@@ -16,7 +16,7 @@ func main() {
 	// コマンドラインオプション
 	var (
 		host = flag.String("host", "", "サーバーのホスト (デフォルト: 0.0.0.0)")
-		port = flag.Int("port", 0, "サーバーのポート (デフォルト: 8080)")
+		port = flag.Int("port", 0, "サーバーのポート (デフォルト: 8009)")
 		help = flag.Bool("help", false, "ヘルプを表示")
 	)
 

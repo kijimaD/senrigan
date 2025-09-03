@@ -60,7 +60,7 @@ func TestConfigValidation(t *testing.T) {
 			config: &Config{
 				Server: ServerConfig{
 					Host: "localhost",
-					Port: 8080,
+					Port: 8009,
 				},
 				Camera: CameraConfig{
 					Devices: []CameraDevice{
@@ -97,7 +97,7 @@ func TestConfigValidation(t *testing.T) {
 			config: &Config{
 				Server: ServerConfig{
 					Host: "localhost",
-					Port: 8080,
+					Port: 8009,
 				},
 				Camera: CameraConfig{
 					Devices: []CameraDevice{}, // 空のデバイスリスト
@@ -110,7 +110,7 @@ func TestConfigValidation(t *testing.T) {
 			config: &Config{
 				Server: ServerConfig{
 					Host: "localhost",
-					Port: 8080,
+					Port: 8009,
 				},
 				Camera: CameraConfig{
 					Devices: []CameraDevice{
@@ -128,7 +128,7 @@ func TestConfigValidation(t *testing.T) {
 			config: &Config{
 				Server: ServerConfig{
 					Host: "localhost",
-					Port: 8080,
+					Port: 8009,
 				},
 				Camera: CameraConfig{
 					Devices: []CameraDevice{
